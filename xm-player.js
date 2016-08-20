@@ -1,8 +1,22 @@
+if (!String.prototype.encodeHTML) {
+  String.prototype.encodeHTML = function () {
+    return this.replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;')
+               .replace(/"/g, '&quot;')
+               .replace(/'/g, '&apos;');
+  };
+}
+
 var songTable;
 var patternOrderDiv;
+var patternsDiv;
+var instrumentsDiv;
 function onBodyLoad() {
   songTable = document.getElementById('song');
   patternOrderDiv = document.getElementById('pattern-order-table');
+  patternsDiv = document.getElementById('patterns');
+  instrumentsDiv = document.getElementById('instruments');
 }
 
 function BinaryFileReader(file) {
@@ -20,6 +34,7 @@ function BinaryFileReader(file) {
 BinaryFileReader.prototype.readIntegers = function(count, signed, bytes, littleEndian) {
   var getter = 'get' + (signed ? 'Int' : 'Uint') + (bytes*8);
   var ret = []; // TODO make this a typed array?
+  //console.log(getter + ' * ' + count);
   while (count--) {
     ret.push(this.data[getter](this.pos, littleEndian));
     this.pos += bytes;
@@ -39,23 +54,29 @@ BinaryFileReader.prototype.readUint32 = function() {
 
 BinaryFileReader.prototype.readZeroPaddedString = function(length) {
   var codes = this.readIntegers(length, false, 1);
+  while (codes.length > 0 && codes[codes.length-1] == 0) {
+    codes.pop();
+  }
   return String.fromCharCode.apply(String, codes);
 };
 
 function XMReader(file) {
   this.binaryReader = new BinaryFileReader(file);
   var that = this;
-  this.binaryReader.onload = function() { return that.onload(); };
+  this.binaryReader.onload = function() { return that.onBinaryLoad(); };
 }
 
 XMReader.prototype.onBinaryLoad = function() {
   this.readSongHeader();
   for (var pi = 0; pi < this.numberOfPatterns; pi++) {
+    patternsDiv.innerHTML += '<h3>Pattern ' + pi + '</h3>';
     this.readPattern();
   }
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
+    instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
     this.readInstrument();
   }
+  console.log('id.ih=' + instrumentsDiv.innerHTML);
 }
 
 XMReader.prototype.readSongHeader = function() {
@@ -65,13 +86,13 @@ XMReader.prototype.readSongHeader = function() {
     throw new Error('wrong ID text: ' + idText);
   }
   var moduleName = r.readZeroPaddedString(20);
-  songTable.innerHTML += '<tr><td>Module name:</td><td>' + moduleName + '</td></tr>';
+  songTable.innerHTML += '<tr><td>Module name:</td><td>' + moduleName.encodeHTML() + '</td></tr>';
   var magic = r.readUint8();
   if (magic != 0x1a) {
     throw new Error('wrong magic byte: ' + magic);
   }
   var trackerName = r.readZeroPaddedString(20);
-  songTable.innerHTML += '<tr><td>Tracker name:</td><td>' + trackerName + '</td></tr>';
+  songTable.innerHTML += '<tr><td>Tracker name:</td><td>' + trackerName.encodeHTML() + '</td></tr>';
   var versionNumber = r.readUint16();
   if (versionNumber != 0x0104) {
     throw new Error('wrong version number: ' + versionNumber);
@@ -115,12 +136,19 @@ XMReader.prototype.readPattern = function() {
 
 XMReader.prototype.readInstrument = function() {
   var r = this.binaryReader;
-  var instrumentHeaderSize = r.readUint16();
+  var instrumentHeaderSize = r.readUint32();
+  if (instrumentHeaderSize < 29) {
+    console.log('WARNING: instrument header size too small: ' + instrumentHeaderSize);
+  }
+  instrumentsDiv.innerHTML += 'Header size: ' + instrumentHeaderSize + '<br>';
   var instrumentName = r.readZeroPaddedString(22);
+  instrumentsDiv.innerHTML += 'Name: ' + instrumentName.encodeHTML() + '<br>';
   var instrumentType = r.readUint8();
+  if (instrumentType != 0) { console.log('WARNING: nonzero instrument type'); }
   var numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
-    var sampleHeaderSize = r.readUint16();
+    var sampleHeaderSize = r.readUint32();
+    instrumentsDiv.innerHTML += 'Sample header size: ' + sampleHeaderSize + '<br>';
     var sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
     // volume and panning envelopes
     var pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
@@ -144,7 +172,9 @@ XMReader.prototype.readInstrument = function() {
     var volumeFadeout = r.readUint16();
     var reserved = r.readUint16();
     if (instrumentHeaderSize > 243) {
-      r.readIntegers(instrumentHeaderSize - 243, false, 1, true);
+      var count = instrumentHeaderSize - 243;
+      console.log('' + instrumentHeaderSize + ' - 243 = ' + count);
+      r.readIntegers(count, false, 1, true);
     }
   } else if (instrumentHeaderSize > 29) {
     r.readIntegers(instrumentHeaderSize - 29, false, 1, true);
@@ -152,6 +182,8 @@ XMReader.prototype.readInstrument = function() {
   var samples = [];
   for (var si = 0; si < numberOfSamples; si++) {
     samples.push(this.readSampleHeader());
+    instrumentsDiv.innerHTML += '<h4>Sample ' + si + '</h4>';
+    instrumentsDiv.innerHTML += 'Name: ' + samples[si].name.encodeHTML() + '<br>';
   }
   for (var si = 0; si < numberOfSamples; si++) {
     this.readSampleData(samples[si]);
@@ -162,17 +194,21 @@ XMReader.prototype.readInstrument = function() {
 XMReader.prototype.readSampleHeader = function() {
   var r = this.binaryReader;
   var s = {};
-  s.lengthInBytes = r.readUint16();
-  var sampleLoopStart = r.readUint16();
-  var sampleLoopLength = r.readUint16();
+  s.lengthInBytes = r.readUint32();
+  var sampleLoopStart = r.readUint32();
+  var sampleLoopLength = r.readUint32();
   var volume = r.readUint8();
   var finetune = r.readIntegers(1, true, 1, true)[0];
   var type = r.readUint8();
   s.bytesPerSample = ((type & (1<<4)) ? 2 : 1);
+  console.log('bytesPerSample = ' + s.bytesPerSample);
   var panning = r.readUint8();
+  console.log('panning=' + panning);
   var relativeNoteNumber = r.readIntegers(1, true, 1, true)[0];
+  console.log('relativeNoteNumber=' + relativeNoteNumber);
   var reserved = r.readUint8();
-  var sampleName = r.readZeroPaddedString(22);
+  s.name = r.readZeroPaddedString(22);
+  console.log('name=' + s.name);
   // TODO
   return s;
 }
