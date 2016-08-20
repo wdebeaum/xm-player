@@ -166,7 +166,7 @@ XMReader.prototype.readPattern = function() {
     }
     if (packedPatternData[pdi] & 0x80) {
       var col = packedPatternData[pdi++];
-      table += '<td>';
+      table += '<td class="note">';
       if (col & 1) {
 	table += noteNumberToName(packedPatternData[pdi++]);
       } else {
@@ -183,7 +183,7 @@ XMReader.prototype.readPattern = function() {
 	table += '</td>';
       }
     } else {
-      table += '<td>' + noteNumberToName(packedPatternData[pdi++]) + '</td>';
+      table += '<td class="note">' + noteNumberToName(packedPatternData[pdi++]) + '</td>';
       for (var x = 1; x < 5; x++) {
 	table += '<td>' + packedPatternData[pdi++].toString(16) + '</td>';
       }

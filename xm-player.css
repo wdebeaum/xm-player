@@ -1,1 +1,19 @@
-/* TODO */
+#patterns table {
+  font-family: monospace;
+  font-size: small;
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+
+#patterns table tr th {
+  text-align: right;
+  border: 1px solid black;
+}
+
+#patterns table tr td {
+  text-align: right;
+}
+
+td.note {
+  border-left: 1px solid black;
+}
