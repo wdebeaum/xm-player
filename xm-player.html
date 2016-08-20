@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>XM player</title>
+<link rel="stylesheet" href="xm-player.css">
+<script type="text/javascript" src="xm-player.js"></script>
+</head>
+<body onload="onBodyLoad()">
+<h1>XM player</h1>
+<label>Input XM file: <input type="file" id="xm-file" onchange="onInputFileChange(event)"></label>
+<h2>Song</h2>
+<table id="song">
+</table>
+<div id="pattern-order-table">Pattern order: </div>
+<h2>Patterns</h2>
+<div id="patterns"></div>
+<h2>Instruments</h2>
+<div id="instruments"></div>
+</body>
+</html>
