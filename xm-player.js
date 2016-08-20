@@ -8,6 +8,20 @@ if (!String.prototype.encodeHTML) {
   };
 }
 
+var noteLetters = ['C-','C#','D-','D#','E-','F-','F#','G-','G#','A-','A#','B-'];
+function noteNumberToName(num) {
+  if (num == 97) {
+    return 'off';
+  } else if (num == 0) {
+    return '---';
+  } else if (num > 97) {
+    return 'err';
+  } else {
+    num--;
+    return '' + noteLetters[num % 12] + Math.floor(num / 12);
+  }
+}
+
 var songTable;
 var patternOrderDiv;
 var patternsDiv;
@@ -76,7 +90,6 @@ XMReader.prototype.onBinaryLoad = function() {
     instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
     this.readInstrument();
   }
-  console.log('id.ih=' + instrumentsDiv.innerHTML);
 }
 
 XMReader.prototype.readSongHeader = function() {
@@ -127,11 +140,70 @@ XMReader.prototype.readSongHeader = function() {
 XMReader.prototype.readPattern = function() {
   var r = this.binaryReader;
   var patternHeaderLength = r.readUint32();
+  if (patternHeaderLength != 9) { console.log('WARNING: wrong pattern header length'); }
   var packingType = r.readUint8();
+  if (packingType != 0) { console.log('WARNING: wrong packing type'); }
   var numberOfRows = r.readUint16();
+  if (numberOfRows == 0) { console.log('WARNING: no rows'); }
+  if (numberOfRows > 256) { console.log('WARNING: too many rows'); }
+  patternsDiv.innerHTML += 'Number of rows: ' + numberOfRows;
   var packedPatternDataSize = r.readUint16();
   var packedPatternData = r.readIntegers(packedPatternDataSize, false, 1, true);
-  // TODO unpack and write to #patterns
+  // unpack and write to #patterns
+  patternsDiv.innerHTML += '<h4>Pattern data</h4>';
+  var table = '<table><tr>';
+  var ci;
+  for (ci = 0; ci < this.numberOfChannels; ci++) {
+    table += '<th>Not</th><th>In</th><th>Vl</th><th>ET</th><th>EP</th>';
+  }
+  table += '</tr>';
+  var pdi = 0;
+  ci = 0;
+  var actualNumberOfRows = 0;
+  while (pdi < packedPatternData.length) {
+    if (ci == 0) {
+      table += '<tr>';
+    }
+    if (packedPatternData[pdi] & 0x80) {
+      var col = packedPatternData[pdi++];
+      table += '<td>';
+      if (col & 1) {
+	table += noteNumberToName(packedPatternData[pdi++]);
+      } else {
+	table += '---';
+      }
+      table += '</td>';
+      for (var x = 1; x < 5; x++) {
+	table += '<td>';
+	if (col & (1 << x)) {
+	  table += packedPatternData[pdi++].toString(16);
+	} else {
+	  table += '--';
+	}
+	table += '</td>';
+      }
+    } else {
+      table += '<td>' + noteNumberToName(packedPatternData[pdi++]) + '</td>';
+      for (var x = 1; x < 5; x++) {
+	table += '<td>' + packedPatternData[pdi++].toString(16) + '</td>';
+      }
+    }
+    ci++;
+    if (ci == this.numberOfChannels) {
+      ci = 0;
+      table += '</tr>';
+      actualNumberOfRows++;
+    }
+  }
+  if (actualNumberOfRows > 0 && // blank patterns are omitted
+      actualNumberOfRows != this.numberOfRows) {
+    console.log('WARNING: wrong number of rows');
+  }
+  if (ci != 0) {
+    console.log('WARNING: number of notes not divisible by number of channels');
+  }
+  table += '</table>';
+  patternsDiv.innerHTML += table;
 }
 
 XMReader.prototype.readInstrument = function() {
