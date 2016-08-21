@@ -22,11 +22,14 @@ function noteNumberToName(num) {
   }
 }
 
+var actx;
+// HTML elements
 var songTable;
 var patternOrderDiv;
 var patternsDiv;
 var instrumentsDiv;
 function onBodyLoad() {
+  actx = new AudioContext();
   songTable = document.getElementById('song');
   patternOrderDiv = document.getElementById('pattern-order-table');
   patternsDiv = document.getElementById('patterns');
@@ -320,6 +323,7 @@ XMReader.prototype.drawVolumePanning = function(volumeOrPanning, points, numberO
     }
     p.setAttribute('d', path);
     svg.appendChild(p);
+    instrumentsDiv.appendChild(document.createElement('br'));
     if (type & 2) { // Sustain
       instrumentsDiv.appendChild(document.createTextNode('Sustain point: ' + sustainPoint));
       instrumentsDiv.appendChild(document.createElement('br'));
@@ -372,6 +376,7 @@ XMReader.prototype.drawSampleHeader = function(s) {
 XMReader.prototype.readSampleData = function(s) {
   var deltas = this.binaryReader.readIntegers(s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
   var values = [];
+  s.data = values;
   var old = 0;
   for (var i = 0; i < deltas.length; i++) {
     var neww = old + deltas[i];
@@ -402,6 +407,25 @@ XMReader.prototype.readSampleData = function(s) {
       max = 0;
     }
   }
+  instrumentsDiv.appendChild(document.createElement('br'));
+  var play = document.createElement('a');
+  play.appendChild(document.createTextNode('▶'));
+  instrumentsDiv.appendChild(play);
+  play.onclick = function() {
+    console.log('playing sample');
+    var bs = actx.createBufferSource();
+    bs.buffer = actx.createBuffer(1, s.data.length, 44100); // ???
+    var floatData = new Float32Array(s.data.length);
+    // 256 values per byte, minus one bit for sign
+    var divisor = Math.pow(256, s.bytesPerSample) / 2;
+    for (var i = 0; i < s.data.length; i++) {
+      floatData[i] = s.data[i] / divisor;
+    }
+    bs.buffer.copyToChannel(floatData, 0);
+    bs.connect(actx.destination);
+    bs.start();
+    console.log(bs);
+  };
 }
 
 function onInputFileChange(evt) {
