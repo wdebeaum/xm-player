@@ -17,3 +17,13 @@
 td.note {
   border-left: 1px solid black;
 }
+
+rect {
+  fill: white;
+  stroke: blue;
+}
+
+path {
+  fill: none;
+  stroke: black;
+}

@@ -209,6 +209,8 @@ XMReader.prototype.readPattern = function() {
   patternsDiv.innerHTML += table;
 }
 
+var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
+
 XMReader.prototype.readInstrument = function() {
   var r = this.binaryReader;
   var instrumentHeaderSize = r.readUint32();
@@ -231,6 +233,14 @@ XMReader.prototype.readInstrument = function() {
     instrumentsDiv.appendChild(document.createTextNode('Sample header size: ' + sampleHeaderSize));
     instrumentsDiv.appendChild(document.createElement('br'));
     var sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
+    if (numberOfSamples > 1) {
+      var snfan = 'Sample number for all notes:';
+      for (var i = 0; i < 96; i++) {
+	snfan += ' ' + sampleNumberForAllNotes[i];
+      }
+      instrumentsDiv.appendChild(document.createTextNode(snfan));
+      instrumentsDiv.appendChild(document.createElement('br'));
+    }
     // volume and panning envelopes
     var pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
     var pointsForPanningEnvelope = r.readIntegers(24, false, 2, true);
@@ -244,13 +254,21 @@ XMReader.prototype.readInstrument = function() {
     var panningLoopEndPoint = r.readUint8();
     var volumeType = r.readUint8();
     var panningType = r.readUint8();
+    this.drawVolumePanning('Volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
+    this.drawVolumePanning('Panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
     // vibrato
     var vibratoType = r.readUint8();
     var vibratoSweep = r.readUint8();
     var vibratoDepth = r.readUint8();
     var vibratoRate = r.readUint8();
+    if (vibratoType || vibratoSweep || vibratoDepth || vibratoRate) {
+      instrumentsDiv.appendChild(document.createTextNode('Vibrato: ' + vibratoTypes[vibratoType] + '(sweep=' + vibratoSweep + '; depth=' + vibratoDepth + '; rate=' + vibratoRate + ')'));
+      instrumentsDiv.appendChild(document.createElement('br'));
+    }
     // other
     var volumeFadeout = r.readUint16();
+    instrumentsDiv.appendChild(document.createTextNode('Volume fadeout: ' + volumeFadeout));
+    instrumentsDiv.appendChild(document.createElement('br'));
     var reserved = r.readUint16();
     if (instrumentHeaderSize > 243) {
       var count = instrumentHeaderSize - 243;
@@ -268,11 +286,48 @@ XMReader.prototype.readInstrument = function() {
     var h = document.createElement('h4');
     instrumentsDiv.appendChild(h);
     h.appendChild(document.createTextNode('Sample ' + si));
-    instrumentsDiv.appendChild(document.createTextNode('Name: ' + samples[si].name));
-    instrumentsDiv.appendChild(document.createElement('br'));
+    /*instrumentsDiv.appendChild(document.createTextNode('Name: ' + samples[si].name));
+    instrumentsDiv.appendChild(document.createElement('br'));*/
   }
   for (var si = 0; si < numberOfSamples; si++) {
+    this.drawSampleHeader(samples[si]);
     this.readSampleData(samples[si]);
+  }
+}
+
+var svgNS = 'http://www.w3.org/2000/svg';
+
+XMReader.prototype.drawVolumePanning = function(volumeOrPanning, points, numberOfPoints, sustainPoint, loopStartPoint, loopEndPoint, type) {
+  if (type & 1) { // On
+    var h = document.createElement('h4');
+    instrumentsDiv.appendChild(h);
+    h.appendChild(document.createTextNode(volumeOrPanning));
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 64 64');
+    svg.setAttribute('width',128);
+    svg.setAttribute('height',128);
+    instrumentsDiv.appendChild(svg);
+    var bg = document.createElementNS(svgNS, 'rect');
+    bg.setAttribute('x',0);
+    bg.setAttribute('y',0);
+    bg.setAttribute('width',64);
+    bg.setAttribute('height',64);
+    svg.appendChild(bg);
+    var p = document.createElementNS(svgNS, 'path');
+    var path = '';
+    for (var i = 0; i < numberOfPoints; i++) {
+      path += (i == 0 ? 'M ' : ' L ') + points[i*2] + ' ' + (64-points[i*2+1]);
+    }
+    p.setAttribute('d', path);
+    svg.appendChild(p);
+    if (type & 2) { // Sustain
+      instrumentsDiv.appendChild(document.createTextNode('Sustain point: ' + sustainPoint));
+      instrumentsDiv.appendChild(document.createElement('br'));
+    }
+    if (type & 4) { // Loop
+      instrumentsDiv.appendChild(document.createTextNode('Loop: ' + loopStartPoint + '-' + loopEndPoint));
+      instrumentsDiv.appendChild(document.createElement('br'));
+    }
   }
 }
 
@@ -280,22 +335,37 @@ XMReader.prototype.readSampleHeader = function() {
   var r = this.binaryReader;
   var s = {};
   s.lengthInBytes = r.readUint32();
-  var sampleLoopStart = r.readUint32();
-  var sampleLoopLength = r.readUint32();
-  var volume = r.readUint8();
-  var finetune = r.readIntegers(1, true, 1, true)[0];
-  var type = r.readUint8();
-  s.bytesPerSample = ((type & (1<<4)) ? 2 : 1);
-  console.log('bytesPerSample = ' + s.bytesPerSample);
-  var panning = r.readUint8();
-  console.log('panning=' + panning);
-  var relativeNoteNumber = r.readIntegers(1, true, 1, true)[0];
-  console.log('relativeNoteNumber=' + relativeNoteNumber);
+  s.loopStart = r.readUint32();
+  s.loopLength = r.readUint32();
+  s.volume = r.readUint8();
+  s.finetune = r.readIntegers(1, true, 1, true)[0];
+  s.loopType = (r.readUint8() & 3);
+  s.bytesPerSample = ((s.loopType & (1<<4)) ? 2 : 1);
+  s.panning = r.readUint8();
+  s.relativeNoteNumber = r.readIntegers(1, true, 1, true)[0];
   var reserved = r.readUint8();
   s.name = r.readZeroPaddedString(22);
   console.log('name=' + s.name);
-  // TODO
   return s;
+}
+
+var loopTypes = ['none', 'forward', 'ping-pong'];
+
+XMReader.prototype.drawSampleHeader = function(s) {
+  var table = document.createElement('table');
+  instrumentsDiv.appendChild(table);
+  table.innerHTML =
+    '<tr><td>Name:</td><td>' + s.name + '</td></tr>' +
+    '<tr><td>Relative note number:</td><td>' + s.relativeNoteNumber + '</td></tr>' +
+    '<tr><td>Finetune:</td><td>' + s.finetune + '</td></tr>' +
+    '<tr><td>Volume:</td><td>' + s.volume + '</td></tr>' +
+    '<tr><td>Panning:</td><td>' + s.panning + '</td></tr>';
+  if (s.loopType) {
+    table.innerHTML +=
+      '<tr><td>Loop:</td><td>' + loopTypes[s.loopType] + ' ' + s.loopStart + '-' + (s.loopLength + s.loopStart) + '</td></tr>';
+  }
+  table.innerHTML +=
+    '<tr><td>Length:</td><td>' + s.lengthInBytes + ' bytes (' + s.bytesPerSample + ' byte(s) per sample)</td></tr>';
 }
 
 XMReader.prototype.readSampleData = function(s) {
@@ -321,7 +391,7 @@ XMReader.prototype.readSampleData = function(s) {
   var min = 256;
   var max = 0;
   for (var i = 0; i < values.length; i++) {
-    var scaled = 128 + Math.trunc(values[i]/256);
+    var scaled = 128 + (s.bytesPerSample == 2 ? Math.trunc(values[i]/256) : values[i]);
     if (scaled < min) { min = scaled; }
     if (scaled > max) { max = scaled; }
     if ((i % horizDivisor) == 0) {
