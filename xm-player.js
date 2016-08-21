@@ -339,8 +339,9 @@ XMReader.prototype.readSampleHeader = function() {
   s.loopLength = r.readUint32();
   s.volume = r.readUint8();
   s.finetune = r.readIntegers(1, true, 1, true)[0];
-  s.loopType = (r.readUint8() & 3);
-  s.bytesPerSample = ((s.loopType & (1<<4)) ? 2 : 1);
+  var type = r.readUint8();
+  s.loopType = (type & 3);
+  s.bytesPerSample = ((type & (1<<4)) ? 2 : 1);
   s.panning = r.readUint8();
   s.relativeNoteNumber = r.readIntegers(1, true, 1, true)[0];
   var reserved = r.readUint8();
@@ -391,7 +392,7 @@ XMReader.prototype.readSampleData = function(s) {
   var min = 256;
   var max = 0;
   for (var i = 0; i < values.length; i++) {
-    var scaled = 128 + (s.bytesPerSample == 2 ? Math.trunc(values[i]/256) : values[i]);
+    var scaled = 128 + ((s.bytesPerSample == 2) ? Math.trunc(values[i]/256) : values[i]);
     if (scaled < min) { min = scaled; }
     if (scaled > max) { max = scaled; }
     if ((i % horizDivisor) == 0) {
