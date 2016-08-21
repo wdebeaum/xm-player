@@ -414,14 +414,15 @@ XMReader.prototype.readSampleData = function(s) {
   play.onclick = function() {
     console.log('playing sample');
     var bs = actx.createBufferSource();
-    bs.buffer = actx.createBuffer(1, s.data.length, 44100); // ???
+    var buffer = actx.createBuffer(1, s.data.length, 44100);
     var floatData = new Float32Array(s.data.length);
     // 256 values per byte, minus one bit for sign
     var divisor = Math.pow(256, s.bytesPerSample) / 2;
     for (var i = 0; i < s.data.length; i++) {
       floatData[i] = s.data[i] / divisor;
     }
-    bs.buffer.copyToChannel(floatData, 0);
+    buffer.copyToChannel(floatData, 0);
+    bs.buffer = buffer;
     bs.connect(actx.destination);
     bs.start();
     console.log(bs);
