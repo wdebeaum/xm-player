@@ -87,7 +87,10 @@ XMReader.prototype.onBinaryLoad = function() {
     this.readPattern();
   }
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
-    instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
+    //instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
+    var h = document.createElement('h3');
+    instrumentsDiv.appendChild(h);
+    h.appendChild(document.createTextNode('Instrument ' + (ii+1)));
     this.readInstrument();
   }
 }
@@ -196,8 +199,8 @@ XMReader.prototype.readPattern = function() {
     }
   }
   if (actualNumberOfRows > 0 && // blank patterns are omitted
-      actualNumberOfRows != this.numberOfRows) {
-    console.log('WARNING: wrong number of rows');
+      actualNumberOfRows != numberOfRows) {
+    console.log('WARNING: wrong number of rows: expected ' + numberOfRows + ' but got ' + actualNumberOfRows);
   }
   if (ci != 0) {
     console.log('WARNING: number of notes not divisible by number of channels');
@@ -212,15 +215,21 @@ XMReader.prototype.readInstrument = function() {
   if (instrumentHeaderSize < 29) {
     console.log('WARNING: instrument header size too small: ' + instrumentHeaderSize);
   }
-  instrumentsDiv.innerHTML += 'Header size: ' + instrumentHeaderSize + '<br>';
+  //instrumentsDiv.innerHTML += 'Header size: ' + instrumentHeaderSize + '<br>';
+  instrumentsDiv.appendChild(document.createTextNode('Header size: ' + instrumentHeaderSize));
+  instrumentsDiv.appendChild(document.createElement('br'));
   var instrumentName = r.readZeroPaddedString(22);
-  instrumentsDiv.innerHTML += 'Name: ' + instrumentName.encodeHTML() + '<br>';
+  //instrumentsDiv.innerHTML += 'Name: ' + instrumentName.encodeHTML() + '<br>';
+  instrumentsDiv.appendChild(document.createTextNode('Name: ' + instrumentName));
+  instrumentsDiv.appendChild(document.createElement('br'));
   var instrumentType = r.readUint8();
   if (instrumentType != 0) { console.log('WARNING: nonzero instrument type'); }
   var numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
     var sampleHeaderSize = r.readUint32();
-    instrumentsDiv.innerHTML += 'Sample header size: ' + sampleHeaderSize + '<br>';
+    //instrumentsDiv.innerHTML += 'Sample header size: ' + sampleHeaderSize + '<br>';
+    instrumentsDiv.appendChild(document.createTextNode('Sample header size: ' + sampleHeaderSize));
+    instrumentsDiv.appendChild(document.createElement('br'));
     var sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
     // volume and panning envelopes
     var pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
@@ -254,13 +263,17 @@ XMReader.prototype.readInstrument = function() {
   var samples = [];
   for (var si = 0; si < numberOfSamples; si++) {
     samples.push(this.readSampleHeader());
-    instrumentsDiv.innerHTML += '<h4>Sample ' + si + '</h4>';
-    instrumentsDiv.innerHTML += 'Name: ' + samples[si].name.encodeHTML() + '<br>';
+    /*instrumentsDiv.innerHTML += '<h4>Sample ' + si + '</h4>';
+    instrumentsDiv.innerHTML += 'Name: ' + samples[si].name.encodeHTML() + '<br>';*/
+    var h = document.createElement('h4');
+    instrumentsDiv.appendChild(h);
+    h.appendChild(document.createTextNode('Sample ' + si));
+    instrumentsDiv.appendChild(document.createTextNode('Name: ' + samples[si].name));
+    instrumentsDiv.appendChild(document.createElement('br'));
   }
   for (var si = 0; si < numberOfSamples; si++) {
     this.readSampleData(samples[si]);
   }
-  // TODO write to #instruments
 }
 
 XMReader.prototype.readSampleHeader = function() {
@@ -287,7 +300,37 @@ XMReader.prototype.readSampleHeader = function() {
 
 XMReader.prototype.readSampleData = function(s) {
   var deltas = this.binaryReader.readIntegers(s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
-  // TODO
+  var values = [];
+  var old = 0;
+  for (var i = 0; i < deltas.length; i++) {
+    var neww = old + deltas[i];
+    values.push(neww);
+    old = neww;
+  }
+  // draw waveform on a canvas
+  var canvas = document.createElement('canvas');
+  canvas.setAttribute('height', 256);
+  var horizDivisor = Math.floor(values.length / 512);
+  if (horizDivisor == 0) { horizDivisor = 1; }
+  canvas.setAttribute('width', 512);
+  instrumentsDiv.appendChild(canvas);
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'white';
+  var min = 256;
+  var max = 0;
+  for (var i = 0; i < values.length; i++) {
+    var scaled = 128 + Math.trunc(values[i]/256);
+    if (scaled < min) { min = scaled; }
+    if (scaled > max) { max = scaled; }
+    if ((i % horizDivisor) == 0) {
+      //console.log('i=' + i + '; min=' + min + '; max=' + max);
+      ctx.fillRect(Math.floor(i/horizDivisor), min, 1, max-min+1);
+      min = 256;
+      max = 0;
+    }
+  }
 }
 
 function onInputFileChange(evt) {
