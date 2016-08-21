@@ -22,6 +22,19 @@ function noteNumberToName(num) {
   }
 }
 
+// FIXME assumes linear frequency table
+function computePlaybackRate(noteNum, relNoteNum, fineTune) {
+  /* this is the formula from the "spec", but it seems weird and wrong
+  var period = 10*12*16*4 - (noteNum + relNoteNum)*16*4 - fineTune/2;
+  console.log('period=' + period);
+  var frequency = 8363*Math.pow(2, (6*12*16*4 - period) / (12*16*4));
+  console.log('frequency=' + frequency);
+  // weird divisor
+  return frequency/22050;*/
+  // this is from principles
+  return Math.pow(2, (noteNum + relNoteNum - 48/*C-4*/ + fineTune/128)/12)
+}
+
 var actx;
 // HTML elements
 var songTable;
@@ -79,6 +92,7 @@ BinaryFileReader.prototype.readZeroPaddedString = function(length) {
 
 function XMReader(file) {
   this.binaryReader = new BinaryFileReader(file);
+  this.channels = [];
   var that = this;
   this.binaryReader.onload = function() { return that.onBinaryLoad(); };
 }
@@ -89,13 +103,15 @@ XMReader.prototype.onBinaryLoad = function() {
     patternsDiv.innerHTML += '<h3>Pattern ' + pi + '</h3>';
     this.readPattern();
   }
+  this.instruments = [];
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
     //instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
     var h = document.createElement('h3');
     instrumentsDiv.appendChild(h);
     h.appendChild(document.createTextNode('Instrument ' + (ii+1)));
-    this.readInstrument();
+    this.instruments.push(this.readInstrument());
   }
+  console.log(this);
 }
 
 XMReader.prototype.readSongHeader = function() {
@@ -216,6 +232,7 @@ var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
 
 XMReader.prototype.readInstrument = function() {
   var r = this.binaryReader;
+  var ret = {};
   var instrumentHeaderSize = r.readUint32();
   if (instrumentHeaderSize < 29) {
     console.log('WARNING: instrument header size too small: ' + instrumentHeaderSize);
@@ -258,6 +275,10 @@ XMReader.prototype.readInstrument = function() {
     var volumeType = r.readUint8();
     var panningType = r.readUint8();
     this.drawVolumePanning('Volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
+    ret.volumeEnvelope = [];
+    for (var i = 0; i < numberOfVolumePoints; i++) {
+      ret.volumeEnvelope.push(pointsForVolumeEnvelope.slice(i*2,i*2+2));
+    }
     this.drawVolumePanning('Panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
     // vibrato
     var vibratoType = r.readUint8();
@@ -282,6 +303,7 @@ XMReader.prototype.readInstrument = function() {
     r.readIntegers(instrumentHeaderSize - 29, false, 1, true);
   }
   var samples = [];
+  ret.samples = samples;
   for (var si = 0; si < numberOfSamples; si++) {
     samples.push(this.readSampleHeader());
     /*instrumentsDiv.innerHTML += '<h4>Sample ' + si + '</h4>';
@@ -296,6 +318,7 @@ XMReader.prototype.readInstrument = function() {
     this.drawSampleHeader(samples[si]);
     this.readSampleData(samples[si]);
   }
+  return ret;
 }
 
 var svgNS = 'http://www.w3.org/2000/svg';
@@ -423,6 +446,7 @@ XMReader.prototype.readSampleData = function(s) {
     }
     buffer.copyToChannel(floatData, 0);
     bs.buffer = buffer;
+    bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
     bs.connect(actx.destination);
     bs.start();
     console.log(bs);
