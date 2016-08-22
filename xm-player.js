@@ -159,9 +159,9 @@ XMReader.prototype.readSongHeader = function() {
   songTable.innerHTML += '<tr><td>Default tempo:</td><td>' + this.defaultTempo + ' ticks per row<td></tr>';
   this.defaultBPM = r.readUint16();
   songTable.innerHTML += '<tr><td>Default BPM:</td><td>' + this.defaultBPM + ' (' + (this.defaultBPM/2.5) + ' ticks per second)<td></tr>';
-  var patternOrder = r.readIntegers(256, false, 1, true);
+  this.patternOrder = r.readIntegers(256, false, 1, true).slice(0,this.songLength);
   for (var i = 0; i < this.songLength; i++) {
-    patternOrderDiv.innerHTML += ((i==0) ? '' : ', ') + patternOrder[i];
+    patternOrderDiv.innerHTML += ((i==0) ? '' : ', ') + this.patternOrder[i];
   }
 }
 
@@ -602,13 +602,32 @@ XMReader.prototype.playPattern = function(pattern, startRow, onEnded) {
     // recurse on next row
     afterDelay(delay, this.playPattern.bind(this, pattern, startRow+1, onEnded));
   } else { // after last row
-    // FIXME should we really stop all notes at the end of the pattern?
-    for (var i = 0; i < this.channels.length; i++) {
-      if (this.channels[i] !== undefined) {
-        this.channels[i].stop();
-	this.channels[i] = undefined;
-      }
+    if (onEnded !== undefined) {
+      onEnded.call();
     }
+  }
+}
+
+XMReader.prototype.stopAllChannels = function() {
+  for (var i = 0; i < this.channels.length; i++) {
+    if (this.channels[i] !== undefined) {
+      this.channels[i].stop();
+      this.channels[i] = undefined;
+    }
+  }
+}
+
+XMReader.prototype.playSong = function(startIndex, onEnded) {
+  if (startIndex === undefined) { startIndex = 0; }
+  console.log('startIndex=' + startIndex + '; pol=' + this.patternOrder.length);
+  if (startIndex < this.patternOrder.length) {
+    this.playPattern(
+      this.patterns[this.patternOrder[startIndex]],
+      0,
+      this.playSong.bind(this, startIndex+1, onEnded)
+    );
+  } else { // after last pattern
+    this.stopAllChannels();
     if (onEnded !== undefined) {
       onEnded.call();
     }
