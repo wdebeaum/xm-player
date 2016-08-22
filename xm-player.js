@@ -110,6 +110,11 @@ XMReader.prototype.onBinaryLoad = function() {
     var h = document.createElement('h3');
     instrumentsDiv.appendChild(h);
     h.appendChild(document.createTextNode('Instrument ' + (ii+1)));
+    var play = document.createElement('a');
+    play.appendChild(document.createTextNode('▶'));
+    instrumentsDiv.appendChild(play);
+    instrumentsDiv.appendChild(document.createElement('br'));
+    play.onclick = this.playNote.bind(this, 48, ii, 64);
     this.instruments.push(this.readInstrument());
   }
   console.log(this);
@@ -470,8 +475,13 @@ XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
   if ('volumeEnvelope' in inst) {
     var gain = actx.createGain();
     for (var i = 0; i < inst.volumeEnvelope.length; i++) {
-      gain.gain.linearRampToValueAtTime(inst.volumeEnvelope[1]/64, actx.currentTime + inst.volumeEnvelope[0] * 2.5 / this.defaultBPM);
+      gain.gain.linearRampToValueAtTime(
+        inst.volumeEnvelope[i][1]/64,
+	actx.currentTime + inst.volumeEnvelope[i][0] * 2.5 / this.defaultBPM
+      );
     }
+    gain.connect(actx.destination);
+    bs.connect(gain);
   } else {
     bs.connect(actx.destination);
   }
