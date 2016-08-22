@@ -473,10 +473,18 @@ XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
   var bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
   bs.playbackRate = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
   if ('volumeEnvelope' in inst) {
+    if (samp.loopType) {
+      // TODO ping-pong
+      // TODO move this back out of volumeEnvelope (just here temporarily so I don't accidentally make an unending sound)
+      bs.loop = true;
+      bs.loopStart = samp.loopStart / 44100;
+      bs.loopEnd = (samp.loopStart + samp.loopLength) / 44100;
+    }
     var gain = actx.createGain();
     for (var i = 0; i < inst.volumeEnvelope.length; i++) {
       gain.gain.linearRampToValueAtTime(
         inst.volumeEnvelope[i][1]/64,
+	// TODO dynamic BPM
 	actx.currentTime + inst.volumeEnvelope[i][0] * 2.5 / this.defaultBPM
       );
     }
@@ -486,7 +494,11 @@ XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
     bs.connect(actx.destination);
   }
   bs.start();
-  // TODO loop, stopping when envelop reaches 0?
+  if (bs.loop) {
+    // stop when we reach the end of the envelope
+    // TODO dynamic BPM
+    bs.stop(actx.currentTime + inst.volumeEnvelope[inst.volumeEnvelope.length-1][0] * 2.5 / this.defaultBPM);
+  }
 }
 
 function onInputFileChange(evt) {
