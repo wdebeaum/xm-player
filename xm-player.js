@@ -33,6 +33,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
   return frequency/22050;*/
   // this is from principles
   return Math.pow(2, (noteNum + relNoteNum - 48/*C-4*/ + fineTune/128)/12)
+  // according to a1k0n, I should multiply a factor of 8363Hz/44100Hz in here, but I'm not so sure
 }
 
 var actx;
@@ -138,9 +139,9 @@ XMReader.prototype.readSongHeader = function() {
   }
   // TODO more errors/warnings
   this.songLength = r.readUint16();
-  songTable.innerHTML += '<tr><td>Song length:</td><td>' + this.songLength + '<td></tr>';
+  songTable.innerHTML += '<tr><td>Song length:</td><td>' + this.songLength + ' patterns<td></tr>';
   var restartPosition = r.readUint16();
-  songTable.innerHTML += '<tr><td>Restart position:</td><td>' + restartPosition + '</td></tr>';
+  songTable.innerHTML += '<tr><td>Restart position:</td><td>pattern ' + restartPosition + ' in pattern order</td></tr>';
   this.numberOfChannels = r.readUint16();
   songTable.innerHTML += '<tr><td>Number of channels:</td><td>' + this.numberOfChannels + '</td></tr>';
   this.numberOfPatterns = r.readUint16();
@@ -149,10 +150,10 @@ XMReader.prototype.readSongHeader = function() {
   songTable.innerHTML += '<tr><td>Number of instruments:</td><td>' + this.numberOfInstruments + '</td></tr>';
   var flags = r.readUint16();
   songTable.innerHTML += '<tr><td>Frequency table:</td><td>' + ((flags & 1) ? 'Linear' : 'Amiga') + '</td></tr>';
-  var defaultTempo = r.readUint16();
-  songTable.innerHTML += '<tr><td>Default tempo:</td><td>' + defaultTempo + '<td></tr>';
-  var defaultBPM = r.readUint16();
-  songTable.innerHTML += '<tr><td>Default BPM:</td><td>' + defaultBPM + '<td></tr>';
+  this.defaultTempo = r.readUint16();
+  songTable.innerHTML += '<tr><td>Default tempo:</td><td>' + this.defaultTempo + ' ticks per row<td></tr>';
+  this.defaultBPM = r.readUint16();
+  songTable.innerHTML += '<tr><td>Default BPM:</td><td>' + this.defaultBPM + ' (' + (this.defaultBPM/2.5) + ' ticks per second)<td></tr>';
   var patternOrder = r.readIntegers(256, false, 1, true);
   for (var i = 0; i < this.songLength; i++) {
     patternOrderDiv.innerHTML += ((i==0) ? '' : ', ') + patternOrder[i];
@@ -252,11 +253,11 @@ XMReader.prototype.readInstrument = function() {
     //instrumentsDiv.innerHTML += 'Sample header size: ' + sampleHeaderSize + '<br>';
     instrumentsDiv.appendChild(document.createTextNode('Sample header size: ' + sampleHeaderSize));
     instrumentsDiv.appendChild(document.createElement('br'));
-    var sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
+    ret.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
     if (numberOfSamples > 1) {
       var snfan = 'Sample number for all notes:';
       for (var i = 0; i < 96; i++) {
-	snfan += ' ' + sampleNumberForAllNotes[i];
+	snfan += ' ' + ret.sampleNumberForAllNotes[i];
       }
       instrumentsDiv.appendChild(document.createTextNode(snfan));
       instrumentsDiv.appendChild(document.createElement('br'));
@@ -275,9 +276,11 @@ XMReader.prototype.readInstrument = function() {
     var volumeType = r.readUint8();
     var panningType = r.readUint8();
     this.drawVolumePanning('Volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
-    ret.volumeEnvelope = [];
-    for (var i = 0; i < numberOfVolumePoints; i++) {
-      ret.volumeEnvelope.push(pointsForVolumeEnvelope.slice(i*2,i*2+2));
+    if (volumeType & 1) {
+      ret.volumeEnvelope = [];
+      for (var i = 0; i < numberOfVolumePoints; i++) {
+	ret.volumeEnvelope.push(pointsForVolumeEnvelope.slice(i*2,i*2+2));
+      }
     }
     this.drawVolumePanning('Panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
     // vibrato
@@ -436,21 +439,44 @@ XMReader.prototype.readSampleData = function(s) {
   instrumentsDiv.appendChild(play);
   play.onclick = function() {
     console.log('playing sample');
-    var bs = actx.createBufferSource();
-    var buffer = actx.createBuffer(1, s.data.length, 44100);
-    var floatData = new Float32Array(s.data.length);
-    // 256 values per byte, minus one bit for sign
-    var divisor = Math.pow(256, s.bytesPerSample) / 2;
-    for (var i = 0; i < s.data.length; i++) {
-      floatData[i] = s.data[i] / divisor;
-    }
-    buffer.copyToChannel(floatData, 0);
-    bs.buffer = buffer;
+    var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
     bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
     bs.connect(actx.destination);
     bs.start();
     console.log(bs);
   };
+}
+
+function sampleDataToBufferSource(data, bytesPerSample) {
+  var bs = actx.createBufferSource();
+  var buffer = actx.createBuffer(1, data.length, 44100);
+  var floatData = new Float32Array(data.length);
+  // 256 values per byte, minus one bit for sign
+  var divisor = Math.pow(256, bytesPerSample) / 2;
+  for (var i = 0; i < data.length; i++) {
+    floatData[i] = data[i] / divisor;
+  }
+  buffer.copyToChannel(floatData, 0);
+  bs.buffer = buffer;
+  return bs;
+}
+
+XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
+  var inst = this.instruments[instrumentNum];
+  var sampleNum = inst.sampleNumberForAllNotes[noteNum];
+  var samp = inst.samples[sampleNum];
+  var bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
+  bs.playbackRate = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
+  if ('volumeEnvelope' in inst) {
+    var gain = actx.createGain();
+    for (var i = 0; i < inst.volumeEnvelope.length; i++) {
+      gain.gain.linearRampToValueAtTime(inst.volumeEnvelope[1]/64, actx.currentTime + inst.volumeEnvelope[0] * 2.5 / this.defaultBPM);
+    }
+  } else {
+    bs.connect(actx.destination);
+  }
+  bs.start();
+  // TODO loop, stopping when envelop reaches 0?
 }
 
 function onInputFileChange(evt) {
