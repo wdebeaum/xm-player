@@ -32,8 +32,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
   // weird divisor
   return frequency/22050;*/
   // this is from principles
-  return Math.pow(2, (noteNum + relNoteNum - 48/*C-4*/ + fineTune/128)/12)
-  // according to a1k0n, I should multiply a factor of 8363Hz/44100Hz in here, but I'm not so sure
+  return Math.pow(2, (noteNum + relNoteNum - 48/*C-4*/ + fineTune/128)/12) * 8363 / 44100;
 }
 
 var actx;
@@ -94,6 +93,7 @@ BinaryFileReader.prototype.readZeroPaddedString = function(length) {
 function XMReader(file) {
   this.binaryReader = new BinaryFileReader(file);
   this.channels = [];
+  this.patterns = [];
   var that = this;
   this.binaryReader.onload = function() { return that.onBinaryLoad(); };
 }
@@ -114,7 +114,7 @@ XMReader.prototype.onBinaryLoad = function() {
     play.appendChild(document.createTextNode('▶'));
     instrumentsDiv.appendChild(play);
     instrumentsDiv.appendChild(document.createElement('br'));
-    play.onclick = this.playNote.bind(this, 48, ii, 64);
+    play.onclick = this.playNote.bind(this, [48, ii, 0,0,0]);
     this.instruments.push(this.readInstrument());
   }
   console.log(this);
@@ -185,35 +185,54 @@ XMReader.prototype.readPattern = function() {
     table += '<th>Not</th><th>In</th><th>Vl</th><th>ET</th><th>EP</th>';
   }
   table += '</tr>';
+  var pat = [];
+  this.patterns.push(pat);
+  patternsDiv.innerHTML +=
+    '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'])">▶</a><br>';
+  var row;
   var pdi = 0;
   ci = 0;
   var actualNumberOfRows = 0;
   while (pdi < packedPatternData.length) {
     if (ci == 0) {
       table += '<tr>';
+      row = [];
+      pat.push(row);
     }
+    var note = [];
+    row.push(note);
     if (packedPatternData[pdi] & 0x80) {
       var col = packedPatternData[pdi++];
       table += '<td class="note">';
       if (col & 1) {
-	table += noteNumberToName(packedPatternData[pdi++]);
+        var noteNum = packedPatternData[pdi++];
+	table += noteNumberToName(noteNum);
+	note.push(noteNum);
       } else {
 	table += '---';
+	note.push(0);
       }
       table += '</td>';
       for (var x = 1; x < 5; x++) {
 	table += '<td>';
 	if (col & (1 << x)) {
-	  table += packedPatternData[pdi++].toString(16);
+	  var cell = packedPatternData[pdi++]
+	  table += cell.toString(16);
+	  note.push(cell);
 	} else {
 	  table += '--';
+	  note.push(0);
 	}
 	table += '</td>';
       }
     } else {
-      table += '<td class="note">' + noteNumberToName(packedPatternData[pdi++]) + '</td>';
+      var noteNum = packedPatternData[pdi++];
+      table += '<td class="note">' + noteNumberToName(noteNum) + '</td>';
+      note.push(noteNum);
       for (var x = 1; x < 5; x++) {
-	table += '<td>' + packedPatternData[pdi++].toString(16) + '</td>';
+	var cell = packedPatternData[pdi++];
+	table += '<td>' + cell.toString(16) + '</td>';
+	note.push(cell);
       }
     }
     ci++;
@@ -466,12 +485,32 @@ function sampleDataToBufferSource(data, bytesPerSample) {
   return bs;
 }
 
-XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
-  var inst = this.instruments[instrumentNum];
+XMReader.prototype.playNote = function(note, channel) {
+  var noteNum = note[0];
+  var instrumentNum = note[1];
+  var volume = note[2];
+  /* TODO
+  var effectType = note[3];
+  var effectParam = note[4];
+  */
+  if (noteNum == 0) { return; } /* TODO apply volume/effects */
+  // stop previous note on this channel
+  if (channel !== undefined &&
+      this.channels[channel] !== undefined) {
+    this.channels[channel].stop();
+    this.channels[channel] = undefined;
+  }
+  if (noteNum >= 97) { return; } // not a note
+  var inst = this.instruments[instrumentNum-1];
   var sampleNum = inst.sampleNumberForAllNotes[noteNum];
   var samp = inst.samples[sampleNum];
+  var volumeFraction = 1;
+  if (volume >= 0x10 && volume <= 0x50) {
+    volumeFraction = (volume - 0x10) / 0x40;
+  }
   var bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
-  bs.playbackRate = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
+  var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
+  bs.playbackRate.value = pbr;
   if ('volumeEnvelope' in inst) {
     if (samp.loopType) {
       // TODO ping-pong
@@ -483,7 +522,7 @@ XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
     var gain = actx.createGain();
     for (var i = 0; i < inst.volumeEnvelope.length; i++) {
       gain.gain.linearRampToValueAtTime(
-        inst.volumeEnvelope[i][1]/64,
+        volumeFraction * inst.volumeEnvelope[i][1] / 64,
 	// TODO dynamic BPM
 	actx.currentTime + inst.volumeEnvelope[i][0] * 2.5 / this.defaultBPM
       );
@@ -493,6 +532,9 @@ XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
   } else {
     bs.connect(actx.destination);
   }
+  if (channel !== undefined) {
+    this.channels[channel] = bs;
+  }
   bs.start();
   if (bs.loop) {
     // stop when we reach the end of the envelope
@@ -501,8 +543,48 @@ XMReader.prototype.playNote = function(noteNum, instrumentNum, volume) {
   }
 }
 
+XMReader.prototype.playRow = function(row) {
+  for (var i = 0; i < row.length; i++) {
+    this.playNote(row[i], i);
+  }
+}
+
+// call fn() after delay seconds
+function afterDelay(delay, fn) {
+  var bs = actx.createBufferSource();
+  bs.buffer = actx.createBuffer(1,2,22050);
+  bs.loop = true;
+  bs.onended = fn;
+  bs.start();
+  bs.stop(actx.currentTime + delay);
+}
+
+XMReader.prototype.playPattern = function(pattern, startRow, onEnded) {
+  if (startRow === undefined) { startRow = 0; }
+  if (startRow < pattern.length) {
+    this.playRow(pattern[startRow]);
+    // delay one row (in seconds)
+    var delay = this.defaultTempo * 2.5 / this.defaultBPM;
+    // recurse on next row
+    afterDelay(delay, this.playPattern.bind(this, pattern, startRow+1, onEnded));
+  } else { // after last row
+    // FIXME should we really stop all notes at the end of the pattern?
+    for (var i = 0; i < this.channels.length; i++) {
+      if (this.channels[i] !== undefined) {
+        this.channels[i].stop();
+	this.channels[i] = undefined;
+      }
+    }
+    if (onEnded !== undefined) {
+      onEnded.call();
+    }
+  }
+}
+
+var xm;
+
 function onInputFileChange(evt) {
   var file = evt.target.files[0];
-  var xm = new XMReader(file);
+  xm = new XMReader(file);
   xm.onload = function() { console.log("successfully loaded file"); };
 }
