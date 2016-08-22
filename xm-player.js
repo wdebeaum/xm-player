@@ -485,7 +485,7 @@ function sampleDataToBufferSource(data, bytesPerSample) {
   return bs;
 }
 
-XMReader.prototype.playNote = function(note, channel) {
+function PlayingNote(note, xm, channel) {
   var noteNum = note[0];
   var instrumentNum = note[1];
   var volume = note[2];
@@ -493,54 +493,88 @@ XMReader.prototype.playNote = function(note, channel) {
   var effectType = note[3];
   var effectParam = note[4];
   */
-  if (noteNum == 0) { return; } /* TODO apply volume/effects */
+  if (noteNum == 0) {
+    if (channel !== undefined &&
+        xm.channels[channel] !== undefined) {
+      if (volume != 0) {
+	console.log(xm.channels[channel]);
+	xm.channels[channel].setVolume(volume);
+      }
+      /* TODO apply effects */
+    }
+    return;
+  }
   // stop previous note on this channel
   if (channel !== undefined &&
-      this.channels[channel] !== undefined) {
-    this.channels[channel].stop();
-    this.channels[channel] = undefined;
+      xm.channels[channel] !== undefined) {
+    xm.channels[channel].stop();
+    xm.channels[channel] = undefined;
   }
   if (noteNum >= 97) { return; } // not a note
-  var inst = this.instruments[instrumentNum-1];
-  var sampleNum = inst.sampleNumberForAllNotes[noteNum];
-  var samp = inst.samples[sampleNum];
+  this.inst = xm.instruments[instrumentNum-1];
+  var sampleNum = this.inst.sampleNumberForAllNotes[noteNum];
+  var samp = this.inst.samples[sampleNum];
+  this.volumeNode = actx.createGain();
+  this.setVolume(volume);
+  this.volumeNode.connect(actx.destination);
+  this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
+  var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
+  this.bs.playbackRate.value = pbr;
+  if ('volumeEnvelope' in this.inst) {
+    if (samp.loopType) {
+      // TODO ping-pong
+      // TODO move this back out of volumeEnvelope (just here temporarily so I don't accidentally make an unending sound)
+      this.bs.loop = true;
+      this.bs.loopStart = samp.loopStart / 44100;
+      this.bs.loopEnd = (samp.loopStart + samp.loopLength) / 44100;
+    }
+    this.startTime = actx.currentTime;
+    this.envelopeNode = actx.createGain();
+    this.setEnvelope();
+    this.envelopeNode.connect(this.volumeNode);
+    this.bs.connect(this.envelopeNode);
+  } else {
+    this.bs.connect(this.volumeNode);
+  }
+  if (channel !== undefined) {
+    xm.channels[channel] = this;
+  }
+  this.bs.start();
+  if (this.bs.loop) {
+    // stop when we reach the end of the envelope
+    // TODO dynamic BPM
+    this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.defaultBPM);
+  }
+}
+
+PlayingNote.prototype.setEnvelope = function() {
+  for (var i = 0; i < this.inst.volumeEnvelope.length; i++) {
+    // TODO dynamic BPM
+    var targetTime =
+      this.startTime + this.inst.volumeEnvelope[i][0] * 2.5 / xm.defaultBPM;
+    if (targetTime >= actx.currentTime) {
+      this.envelopeNode.gain.linearRampToValueAtTime(
+	this.inst.volumeEnvelope[i][1] / 64,
+	targetTime
+      );
+    }
+  }
+}
+
+PlayingNote.prototype.setVolume = function(volume) {
   var volumeFraction = 1;
   if (volume >= 0x10 && volume <= 0x50) {
     volumeFraction = (volume - 0x10) / 0x40;
   }
-  var bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
-  var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
-  bs.playbackRate.value = pbr;
-  if ('volumeEnvelope' in inst) {
-    if (samp.loopType) {
-      // TODO ping-pong
-      // TODO move this back out of volumeEnvelope (just here temporarily so I don't accidentally make an unending sound)
-      bs.loop = true;
-      bs.loopStart = samp.loopStart / 44100;
-      bs.loopEnd = (samp.loopStart + samp.loopLength) / 44100;
-    }
-    var gain = actx.createGain();
-    for (var i = 0; i < inst.volumeEnvelope.length; i++) {
-      gain.gain.linearRampToValueAtTime(
-        volumeFraction * inst.volumeEnvelope[i][1] / 64,
-	// TODO dynamic BPM
-	actx.currentTime + inst.volumeEnvelope[i][0] * 2.5 / this.defaultBPM
-      );
-    }
-    gain.connect(actx.destination);
-    bs.connect(gain);
-  } else {
-    bs.connect(actx.destination);
-  }
-  if (channel !== undefined) {
-    this.channels[channel] = bs;
-  }
-  bs.start();
-  if (bs.loop) {
-    // stop when we reach the end of the envelope
-    // TODO dynamic BPM
-    bs.stop(actx.currentTime + inst.volumeEnvelope[inst.volumeEnvelope.length-1][0] * 2.5 / this.defaultBPM);
-  }
+  this.volumeNode.gain.value = volumeFraction;
+}
+
+PlayingNote.prototype.stop = function(when) {
+  this.bs.stop(when);
+}
+
+XMReader.prototype.playNote = function(note, channel) {
+  new PlayingNote(note, this, channel);
 }
 
 XMReader.prototype.playRow = function(row) {
