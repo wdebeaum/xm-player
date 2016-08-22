@@ -323,7 +323,6 @@ XMReader.prototype.readInstrument = function() {
     var reserved = r.readUint16();
     if (instrumentHeaderSize > 243) {
       var count = instrumentHeaderSize - 243;
-      console.log('' + instrumentHeaderSize + ' - 243 = ' + count);
       r.readIntegers(count, false, 1, true);
     }
   } else if (instrumentHeaderSize > 29) {
@@ -400,7 +399,6 @@ XMReader.prototype.readSampleHeader = function() {
   s.relativeNoteNumber = r.readIntegers(1, true, 1, true)[0];
   var reserved = r.readUint8();
   s.name = r.readZeroPaddedString(22);
-  console.log('name=' + s.name);
   return s;
 }
 
@@ -462,12 +460,10 @@ XMReader.prototype.readSampleData = function(s) {
   play.appendChild(document.createTextNode('▶'));
   instrumentsDiv.appendChild(play);
   play.onclick = function() {
-    console.log('playing sample');
     var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
     bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
     bs.connect(actx.destination);
     bs.start();
-    console.log(bs);
   };
 }
 
@@ -497,7 +493,6 @@ function PlayingNote(note, xm, channel) {
     if (channel !== undefined &&
         xm.channels[channel] !== undefined) {
       if (volume != 0) {
-	console.log(xm.channels[channel]);
 	xm.channels[channel].setVolume(volume);
       }
       /* TODO apply effects */
@@ -619,7 +614,6 @@ XMReader.prototype.stopAllChannels = function() {
 
 XMReader.prototype.playSong = function(startIndex, onEnded) {
   if (startIndex === undefined) { startIndex = 0; }
-  console.log('startIndex=' + startIndex + '; pol=' + this.patternOrder.length);
   if (startIndex < this.patternOrder.length) {
     this.playPattern(
       this.patterns[this.patternOrder[startIndex]],
