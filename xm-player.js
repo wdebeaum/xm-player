@@ -91,6 +91,9 @@ BinaryFileReader.prototype.readZeroPaddedString = function(length) {
 };
 
 function XMReader(file) {
+  this.masterVolume = actx.createGain();
+  this.masterVolume.gain.value = 0.1;
+  this.masterVolume.connect(actx.destination);
   this.binaryReader = new BinaryFileReader(file);
   this.channels = [];
   this.patterns = [];
@@ -462,7 +465,7 @@ XMReader.prototype.readSampleData = function(s) {
   play.onclick = function() {
     var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
     bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
-    bs.connect(actx.destination);
+    bs.connect(xm.masterVolume);
     bs.start();
   };
 }
@@ -511,7 +514,7 @@ function PlayingNote(note, xm, channel) {
   var samp = this.inst.samples[sampleNum];
   this.volumeNode = actx.createGain();
   this.setVolume(volume);
-  this.volumeNode.connect(actx.destination);
+  this.volumeNode.connect(xm.masterVolume);
   this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
   var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
   this.bs.playbackRate.value = pbr;
