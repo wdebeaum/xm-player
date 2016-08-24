@@ -24,21 +24,7 @@ function noteNumberToName(num) {
 
 // FIXME assumes linear frequency table
 function computePlaybackRate(noteNum, relNoteNum, fineTune) {
-/* this version works, but is still ugly
-  var period = 10*12*16*4 - (noteNum - 1 + relNoteNum)*16*4 - fineTune/2;
-  //console.log('period=' + period);
-  var frequency = 8363*Math.pow(2, (6*12*16*4 - period) / (12*16*4));
-  //console.log('frequency=' + frequency);
-  // weird divisor
-  return frequency/44100;*/
-  /* this is the formula from the "spec", but it seems weird and wrong
-  var period = 10*12*16*4 - (noteNum + relNoteNum)*16*4 - fineTune/2;
-  console.log('period=' + period);
-  var frequency = 8363*Math.pow(2, (6*12*16*4 - period) / (12*16*4));
-  console.log('frequency=' + frequency);
-  // weird divisor
-  return frequency/22050;*/
-  // this is from principles, but is also wrong
+  // this is different from the formula in the spec, but is more readable
   return Math.pow(2, (noteNum - 1 + relNoteNum - 48/*C-4*/ + fineTune/128)/12) * 8363 / 44100;
 }
 
