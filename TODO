@@ -2,3 +2,9 @@
 - sometimes lags
 # mixes too loud and clips
 - Chrome mysteriously only plays the first note (row?)
+- effects used in my music:
+ - portamento down (0x02)
+ - set note panning position (0x08)
+ - set song speed/BPM (0x0f)
+ ? arpeggio (0x00) (I actually used this thinking it was the volume, I think)
+? scroll to and highlight pattern row currently playing
