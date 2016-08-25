@@ -580,6 +580,7 @@ function afterDelay(delay, fn) {
   bs.buffer = actx.createBuffer(1,2,22050);
   bs.loop = true;
   bs.onended = fn;
+  bs.connect(actx.destination); // Chrome needs this
   bs.start();
   bs.stop(actx.currentTime + delay);
 }
