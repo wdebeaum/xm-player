@@ -10,3 +10,4 @@
 # add row numbers to patterns
 # scroll to and highlight pattern row currently playing
 ? allow loading new song without reloading the page
+? interpret effects in tooltips
