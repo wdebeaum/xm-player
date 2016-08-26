@@ -593,7 +593,7 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
   var rowElement =
     document.getElementById(rowID);
   rowElement.scrollIntoView(true);
-  document.documentElement.scrollTop -= (document.documentElement.clientHeight - rowElement.clientHeight) / 2;
+  scrollBy(0, -(document.documentElement.clientHeight - rowElement.clientHeight) / 2);
   // make sure it's highlighted (not 'display: none')
   rowHighlight.style.display = '';
 }
