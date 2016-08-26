@@ -3,6 +3,12 @@
 <meta charset="UTF-8">
 <title>XM player</title>
 <link rel="stylesheet" href="xm-player.css">
+<!-- style type="text/css">
+#pattern-0-row-0 {
+  background: black;
+  color: white;
+}
+</style -->
 <script type="text/javascript" src="xm-player.js"></script>
 </head>
 <body onload="onBodyLoad()">
@@ -17,5 +23,6 @@
 <div id="patterns"></div>
 <h2>Instruments</h2>
 <div id="instruments"></div>
+<div id="row-highlight" style="position: fixed; font-size: small; left: 0; top: 50%; margin-top: -1.5ex; width: 100%; border: 2px solid black; background-color: rgba(0,0,255,0.5); display: none;">▶</div>
 </body>
 </html>

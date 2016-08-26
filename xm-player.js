@@ -34,12 +34,14 @@ var songTable;
 var patternOrderDiv;
 var patternsDiv;
 var instrumentsDiv;
+var rowHighlight;
 function onBodyLoad() {
   actx = new AudioContext();
   songTable = document.getElementById('song');
   patternOrderDiv = document.getElementById('pattern-order-table');
   patternsDiv = document.getElementById('patterns');
   instrumentsDiv = document.getElementById('instruments');
+  rowHighlight = document.getElementById('row-highlight');
 }
 
 function BinaryFileReader(file) {
@@ -184,7 +186,7 @@ XMReader.prototype.readPattern = function(pi) {
   var pat = [];
   this.patterns.push(pat);
   patternsDiv.innerHTML +=
-    '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'])">▶</a><br>';
+    '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')">▶</a><br>';
   var row;
   var pdi = 0;
   ci = 0;
@@ -585,15 +587,36 @@ function afterDelay(delay, fn) {
   bs.stop(actx.currentTime + delay);
 }
 
-XMReader.prototype.playPattern = function(pattern, startRow, onEnded) {
+function highlightAndCenterRow(patternIndex, rowIndex) {
+  var rowID = 'pattern-' + patternIndex + '-row-' + rowIndex;
+  // scroll the row to the center of the view
+  var rowElement =
+    document.getElementById(rowID);
+  rowElement.scrollIntoView(true);
+  document.documentElement.scrollTop -= (document.documentElement.clientHeight - rowElement.clientHeight) / 2;
+/* this is too expensive, it slows the song down noticeably
+  // move the highlight to that row
+  var ss = document.styleSheets[1];
+  var oldRule = ss.cssRules[0];
+  var newText = '#' + rowID + ' { ' + ss.cssRules[0].style.cssText + ' }';
+  ss.deleteRule(0);
+  ss.insertRule(newText, 0);*/
+  rowHighlight.style.display = '';
+}
+
+XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded) {
   if (startRow === undefined) { startRow = 0; }
   if (startRow < pattern.length) {
+    // update display
+    highlightAndCenterRow(patternIndex, startRow);
+    // play all the notes/commands in the row
     this.playRow(pattern[startRow]);
     // delay one row (in seconds)
     var delay = this.defaultTempo * 2.5 / this.defaultBPM;
     // recurse on next row
-    afterDelay(delay, this.playPattern.bind(this, pattern, startRow+1, onEnded));
+    afterDelay(delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
   } else { // after last row
+    rowHighlight.style.display = 'none';
     if (onEnded !== undefined) {
       onEnded.call();
     }
@@ -614,6 +637,7 @@ XMReader.prototype.playSong = function(startIndex, onEnded) {
   if (startIndex < this.patternOrder.length) {
     this.playPattern(
       this.patterns[this.patternOrder[startIndex]],
+      this.patternOrder[startIndex],
       0,
       this.playSong.bind(this, startIndex+1, onEnded)
     );

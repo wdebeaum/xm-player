@@ -8,5 +8,5 @@
  - set song speed/BPM (0x0f)
  ? arpeggio (0x00) (I actually used this thinking it was the volume, I think)
 # add row numbers to patterns
-? scroll to and highlight pattern row currently playing
+# scroll to and highlight pattern row currently playing
 ? allow loading new song without reloading the page
