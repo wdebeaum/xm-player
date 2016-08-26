@@ -594,13 +594,7 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
     document.getElementById(rowID);
   rowElement.scrollIntoView(true);
   document.documentElement.scrollTop -= (document.documentElement.clientHeight - rowElement.clientHeight) / 2;
-/* this is too expensive, it slows the song down noticeably
-  // move the highlight to that row
-  var ss = document.styleSheets[1];
-  var oldRule = ss.cssRules[0];
-  var newText = '#' + rowID + ' { ' + ss.cssRules[0].style.cssText + ' }';
-  ss.deleteRule(0);
-  ss.insertRule(newText, 0);*/
+  // make sure it's highlighted (not 'display: none')
   rowHighlight.style.display = '';
 }
 
@@ -616,6 +610,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
     // recurse on next row
     afterDelay(delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
   } else { // after last row
+    // stop showing row highlight
     rowHighlight.style.display = 'none';
     if (onEnded !== undefined) {
       onEnded.call();
