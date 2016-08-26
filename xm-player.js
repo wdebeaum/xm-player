@@ -98,7 +98,7 @@ XMReader.prototype.onBinaryLoad = function() {
   this.readSongHeader();
   for (var pi = 0; pi < this.numberOfPatterns; pi++) {
     patternsDiv.innerHTML += '<h3>Pattern ' + pi + '</h3>';
-    this.readPattern();
+    this.readPattern(pi);
   }
   this.instruments = [];
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
@@ -161,7 +161,7 @@ XMReader.prototype.readSongHeader = function() {
   }
 }
 
-XMReader.prototype.readPattern = function() {
+XMReader.prototype.readPattern = function(pi) {
   var r = this.binaryReader;
   var patternHeaderLength = r.readUint32();
   if (patternHeaderLength != 9) { console.log('WARNING: wrong pattern header length'); }
@@ -175,7 +175,7 @@ XMReader.prototype.readPattern = function() {
   var packedPatternData = r.readIntegers(packedPatternDataSize, false, 1, true);
   // unpack and write to #patterns
   patternsDiv.innerHTML += '<h4>Pattern data</h4>';
-  var table = '<table><tr>';
+  var table = '<table><tr><th>Rw</th>';
   var ci;
   for (ci = 0; ci < this.numberOfChannels; ci++) {
     table += '<th>Not</th><th>In</th><th>Vl</th><th>ET</th><th>EP</th>';
@@ -191,7 +191,7 @@ XMReader.prototype.readPattern = function() {
   var actualNumberOfRows = 0;
   while (pdi < packedPatternData.length) {
     if (ci == 0) {
-      table += '<tr>';
+      table += '<tr id="pattern-' + pi + '-row-' + actualNumberOfRows + '"><td>' + actualNumberOfRows.toString(16) + '</td>';
       row = [];
       pat.push(row);
     }
