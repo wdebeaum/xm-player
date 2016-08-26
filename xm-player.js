@@ -110,7 +110,7 @@ XMReader.prototype.onBinaryLoad = function() {
     play.appendChild(document.createTextNode('▶'));
     instrumentsDiv.appendChild(play);
     instrumentsDiv.appendChild(document.createElement('br'));
-    play.onclick = this.playNote.bind(this, [48, ii, 0,0,0]);
+    play.onclick = this.playNote.bind(this, [65, ii+1, 0,0,0], 0);
     this.instruments.push(this.readInstrument());
   }
   console.log(this);
@@ -405,13 +405,13 @@ XMReader.prototype.drawSampleHeader = function(s) {
   instrumentsDiv.appendChild(table);
   table.innerHTML =
     '<tr><td>Name:</td><td>' + s.name + '</td></tr>' +
-    '<tr><td>Relative note number:</td><td>' + s.relativeNoteNumber + '</td></tr>' +
-    '<tr><td>Finetune:</td><td>' + s.finetune + '</td></tr>' +
-    '<tr><td>Volume:</td><td>' + s.volume + '</td></tr>' +
-    '<tr><td>Panning:</td><td>' + s.panning + '</td></tr>';
+    '<tr><td>Relative note number:</td><td>' + s.relativeNoteNumber + ' semitones</td></tr>' +
+    '<tr><td>Finetune:</td><td>' + s.finetune + ' / 128 semitones</td></tr>' +
+    '<tr><td>Volume:</td><td>' + s.volume + ' / 64</td></tr>' +
+    '<tr><td>Panning:</td><td>' + s.panning + ' / 255 right</td></tr>';
   if (s.loopType) {
     table.innerHTML +=
-      '<tr><td>Loop:</td><td>' + loopTypes[s.loopType] + ' ' + s.loopStart + '-' + (s.loopLength + s.loopStart) + '</td></tr>';
+      '<tr><td>Loop:</td><td>' + loopTypes[s.loopType] + ' ' + s.loopStart + ' bytes - ' + (s.loopLength + s.loopStart) + ' bytes</td></tr>';
   }
   table.innerHTML +=
     '<tr><td>Length:</td><td>' + s.lengthInBytes + ' bytes (' + s.bytesPerSample + ' byte(s) per sample)</td></tr>';
@@ -457,6 +457,7 @@ XMReader.prototype.readSampleData = function(s) {
   instrumentsDiv.appendChild(play);
   play.onclick = function() {
     var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
+    // TODO apply sample volume (0-64), panning (left 0 - right 255)
     bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
     bs.connect(xm.masterVolume);
     bs.start();
@@ -511,14 +512,13 @@ function PlayingNote(note, xm, channel) {
   this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
   var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
   this.bs.playbackRate.value = pbr;
+  if (samp.loopType) {
+    // TODO ping-pong
+    this.bs.loop = true;
+    this.bs.loopStart = samp.loopStart / samp.bytesPerSample / 44100;
+    this.bs.loopEnd = (samp.loopStart + samp.loopLength) / samp.bytesPerSample / 44100;
+  }
   if ('volumeEnvelope' in this.inst) {
-    if (samp.loopType) {
-      // TODO ping-pong
-      // TODO move this back out of volumeEnvelope (just here temporarily so I don't accidentally make an unending sound)
-      this.bs.loop = true;
-      this.bs.loopStart = samp.loopStart / 44100;
-      this.bs.loopEnd = (samp.loopStart + samp.loopLength) / 44100;
-    }
     this.startTime = actx.currentTime;
     this.envelopeNode = actx.createGain();
     this.setEnvelope();
@@ -531,7 +531,7 @@ function PlayingNote(note, xm, channel) {
     xm.channels[channel] = this;
   }
   this.bs.start();
-  if (this.bs.loop) {
+  if (this.bs.loop && 'volumeEnvelope' in this.inst) {
     // stop when we reach the end of the envelope
     // TODO dynamic BPM
     this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.defaultBPM);
