@@ -592,8 +592,9 @@ function PlayingNote(note, xm, channel) {
     xm.channels[channel] = this;
   }
   this.bs.start();
-  if (this.bs.loop && 'volumeEnvelope' in this.inst) {
-    // stop when we reach the end of the envelope
+  // stop looping when we reach the end of an envelope that ends at 0 volume
+  if (this.bs.loop && 'volumeEnvelope' in this.inst &&
+      this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][1] == 0) {
     // TODO dynamic BPM
     this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.defaultBPM);
   }

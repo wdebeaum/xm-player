@@ -13,7 +13,7 @@
 ? allow loading new song without reloading the page
 ? interpret effects in tooltips
 - fix clicks, very noticeable in mysong60.xm
-- degenerate volume envelopes don't behave correctly (spooky00.xm instrument 6)
+# degenerate volume envelopes don't behave correctly (spooky00.xm instrument 6)
 - more control over playing:
  - stop
  - loop
