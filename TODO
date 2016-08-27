@@ -1,5 +1,6 @@
 # pitch is off relative to jsxm; check sign of finetune/relnote?
-- sometimes lags
+- sometimes lags, particularly noticeable in mysong66.xm
+ ? avoid using actx.currentTime and instead pass along the time it's supposed to be as a starting point
 # mixes too loud and clips
 - Chrome mysteriously only plays the first note (row?)
 - effects used in my music:
@@ -11,3 +12,8 @@
 # scroll to and highlight pattern row currently playing
 ? allow loading new song without reloading the page
 ? interpret effects in tooltips
+- fix clicks, very noticeable in mysong60.xm
+- degenerate volume envelopes don't behave correctly (spooky00.xm instrument 6)
+- more control over playing:
+ - stop
+ - loop
