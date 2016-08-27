@@ -1,13 +1,15 @@
 #patterns table {
   font-family: monospace;
   font-size: small;
-  border: 1px solid black;
+  border: 2px solid rgb(63,63,127);
   border-collapse: collapse;
+  background-color: black;
+  color: white;
 }
 
 #patterns table tr th {
   text-align: right;
-  border: 1px solid black;
+  border: 2px solid rgb(63,63,127);
 }
 
 #patterns table tr td {
@@ -15,7 +17,24 @@
 }
 
 td.note {
-  border-left: 1px solid black;
+  border-left: 2px solid rgb(63,63,127);
+}
+
+/* colors from MilkyTracker */
+tr.row-0 td.row-num { color: yellow; }
+.col-1 { color: cyan; }
+.col-2 { color: lime; }
+.col-3 { color: magenta; }
+.col-4 { color: yellow; }
+
+#row-highlight {
+  border: 2px solid;
+  border-top-color: rgba(255,0,127,0.4);
+  border-left-color: rgba(255,0,127,0.4);
+  border-bottom-color: rgba(31,0,15,0.4);
+  border-right-color: rgba(31,0,15,0.4);
+  background-color: rgba(255,0,127,0.4);
+  color: rgb(127,127,255);
 }
 
 rect {

@@ -13,7 +13,7 @@ function noteNumberToName(num) {
   if (num == 97) {
     return 'off';
   } else if (num == 0) {
-    return '---';
+    return '···';
   } else if (num > 97) {
     return 'err';
   } else {
@@ -193,7 +193,7 @@ XMReader.prototype.readPattern = function(pi) {
   var table = '<tr><th>Rw</th>';
   var ci;
   for (ci = 0; ci < this.numberOfChannels; ci++) {
-    table += '<th>Not</th><th>In</th><th>Vl</th><th>ET</th><th>EP</th>';
+    table += '<th class="note">Not</th><th class="col-1">In</th><th class="col-2">Vl</th><th class="col-3">ET</th><th class="col-4">EP</th>';
   }
   table += '</tr>';
   var pat = [];
@@ -211,7 +211,7 @@ XMReader.prototype.readPattern = function(pi) {
   var actualNumberOfRows = 0;
   while (pdi < packedPatternData.length) {
     if (ci == 0) {
-      table += '<tr id="pattern-' + pi + '-row-' + actualNumberOfRows + '"><td>' + actualNumberOfRows.toString(16) + '</td>';
+      table += '<tr id="pattern-' + pi + '-row-' + actualNumberOfRows + '" class="row-' + (actualNumberOfRows % 4) + '"><td class="row-num">' + actualNumberOfRows.toString(16) + '</td>';
       row = [];
       pat.push(row);
     }
@@ -225,18 +225,18 @@ XMReader.prototype.readPattern = function(pi) {
 	table += noteNumberToName(noteNum);
 	note.push(noteNum);
       } else {
-	table += '---';
+	table += '···';
 	note.push(0);
       }
       table += '</td>';
       for (var x = 1; x < 5; x++) {
-	table += '<td>';
+	table += '<td class="col-' + x + '">';
 	if (col & (1 << x)) {
 	  var cell = packedPatternData[pdi++]
 	  table += cell.toString(16);
 	  note.push(cell);
 	} else {
-	  table += '--';
+	  table += '··';
 	  note.push(0);
 	}
 	table += '</td>';
@@ -247,7 +247,7 @@ XMReader.prototype.readPattern = function(pi) {
       note.push(noteNum);
       for (var x = 1; x < 5; x++) {
 	var cell = packedPatternData[pdi++];
-	table += '<td>' + cell.toString(16) + '</td>';
+	table += '<td class="col-' + x + '">' + cell.toString(16) + '</td>';
 	note.push(cell);
       }
     }
