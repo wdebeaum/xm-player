@@ -6,7 +6,7 @@
 - effects used in my music:
  - portamento down (0x02) (mysong77.xm)
  - set note panning position (0x08) (mysong54.xm, mysong79.xm)
- - set song speed/BPM (0x0f) (mysong01c.xm, mysong70b.xm, stargate.xm)
+ # set song speed/BPM (0x0f) (mysong01c.xm, mysong70b.xm, stargate.xm)
  ? arpeggio (0x00) (mysong00a.xm, I actually used this thinking it was the volume, I think)
 # add row numbers to patterns
 # scroll to and highlight pattern row currently playing

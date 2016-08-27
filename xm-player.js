@@ -163,8 +163,10 @@ XMReader.prototype.readSongHeader = function() {
   var flags = r.readUint16();
   songTable.innerHTML += '<tr><td>Frequency table:</td><td>' + ((flags & 1) ? 'Linear' : 'Amiga') + '</td></tr>';
   this.defaultTempo = r.readUint16();
+  this.currentTempo = this.defaultTempo;
   songTable.innerHTML += '<tr><td>Default tempo:</td><td>' + this.defaultTempo + ' ticks per row<td></tr>';
   this.defaultBPM = r.readUint16();
+  this.currentBPM = this.defaultBPM;
   songTable.innerHTML += '<tr><td>Default BPM:</td><td>' + this.defaultBPM + ' (' + (this.defaultBPM/2.5) + ' ticks per second)<td></tr>';
   this.patternOrder = r.readIntegers(256, false, 1, true).slice(0,this.songLength);
   for (var i = 0; i < this.songLength; i++) {
@@ -531,17 +533,22 @@ function PlayingNote(note, xm, channel) {
   var noteNum = note[0];
   var instrumentNum = note[1];
   var volume = note[2];
-  /* TODO
   var effectType = note[3];
   var effectParam = note[4];
-  */
+  if (effectType == 0xf) { // set tempo/BPM
+    if (effectParam < 0x20) { // set tempo
+      xm.currentTempo = effectParam;
+    } else { // set BPM
+      xm.currentBPM = effectParam; // not - 0x20?
+    }
+  } // TODO other global effects?
   if (noteNum == 0) {
     if (channel !== undefined &&
         xm.channels[channel] !== undefined) {
       if (volume != 0) {
 	xm.channels[channel].setVolume(volume);
       }
-      /* TODO apply effects */
+      /* TODO apply channel effects */
     }
     return;
   }
@@ -596,7 +603,7 @@ function PlayingNote(note, xm, channel) {
   if (this.bs.loop && 'volumeEnvelope' in this.inst &&
       this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][1] == 0) {
     // TODO dynamic BPM
-    this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.defaultBPM);
+    this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.currentBPM);
   }
 }
 
@@ -604,7 +611,7 @@ PlayingNote.prototype.setEnvelope = function() {
   for (var i = 0; i < this.inst.volumeEnvelope.length; i++) {
     // TODO dynamic BPM
     var targetTime =
-      this.startTime + this.inst.volumeEnvelope[i][0] * 2.5 / xm.defaultBPM;
+      this.startTime + this.inst.volumeEnvelope[i][0] * 2.5 / xm.currentBPM;
     if (targetTime >= actx.currentTime) {
       this.envelopeNode.gain.linearRampToValueAtTime(
 	this.inst.volumeEnvelope[i][1] / 64,
@@ -684,7 +691,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
     // play all the notes/commands in the row
     this.playRow(pattern[startRow]);
     // delay one row (in seconds)
-    var delay = this.defaultTempo * 2.5 / this.defaultBPM;
+    var delay = this.currentTempo * 2.5 / this.currentBPM;
     // recurse on next row
     afterDelay(startTime, delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
   } else { // after last row
@@ -707,6 +714,10 @@ XMReader.prototype.stopAllChannels = function() {
 
 XMReader.prototype.playSong = function(startIndex, onEnded) {
   if (startIndex === undefined) { startIndex = 0; }
+  if (startIndex == 0) {
+    this.currentTempo = this.defaultTempo;
+    this.currentBPM = this.defaultBPM;
+  }
   if (startIndex < this.patternOrder.length) {
     this.playPattern(
       this.patterns[this.patternOrder[startIndex]],
