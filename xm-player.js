@@ -635,15 +635,26 @@ XMReader.prototype.playRow = function(row) {
   }
 }
 
-// call fn() after delay seconds
-function afterDelay(delay, fn) {
-  var bs = actx.createBufferSource();
-  bs.buffer = actx.createBuffer(1,2,22050);
-  bs.loop = true;
-  bs.onended = fn;
-  bs.connect(actx.destination); // Chrome needs this
-  bs.start();
-  bs.stop(actx.currentTime + delay);
+var lastLag = 0;
+
+// call fn(startTime+delay) at time startTime+delay, or immediately if that has already passed
+function afterDelay(startTime, delay, fn) {
+  var endTime = startTime + delay;
+  if (actx.currentTime >= endTime) {
+    if (actx.currentTime > lastLag + 10) {
+      console.log('WARNING: lag');
+      lastLag = actx.currentTime;
+    }
+    fn(endTime);
+  } else {
+    var bs = actx.createBufferSource();
+    bs.buffer = actx.createBuffer(1,2,22050);
+    bs.loop = true;
+    bs.onended = fn.bind(this, endTime);
+    bs.connect(actx.destination); // Chrome needs this
+    bs.start();
+    bs.stop(endTime);
+  }
 }
 
 function highlightAndCenterRow(patternIndex, rowIndex) {
@@ -657,8 +668,9 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
   rowHighlight.style.display = '';
 }
 
-XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded) {
+XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, startTime) {
   if (startRow === undefined) { startRow = 0; }
+  if (startTime === undefined) { startTime = actx.currentTime; }
   if (startRow < pattern.length) {
     // update display
     highlightAndCenterRow(patternIndex, startRow);
@@ -667,7 +679,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
     // delay one row (in seconds)
     var delay = this.defaultTempo * 2.5 / this.defaultBPM;
     // recurse on next row
-    afterDelay(delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
+    afterDelay(startTime, delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
   } else { // after last row
     // stop showing row highlight
     rowHighlight.style.display = 'none';

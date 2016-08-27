@@ -1,8 +1,8 @@
 # pitch is off relative to jsxm; check sign of finetune/relnote?
-- sometimes lags, particularly noticeable in mysong66.xm
- ? avoid using actx.currentTime and instead pass along the time it's supposed to be as a starting point
+# sometimes lags, particularly noticeable in mysong66.xm
+ # avoid using actx.currentTime and instead pass along the time it's supposed to be as a starting point
 # mixes too loud and clips
-- Chrome mysteriously only plays the first note (row?)
+# Chrome mysteriously only plays the first note (row?)
 - effects used in my music:
  - portamento down (0x02) (mysong77.xm)
  - set note panning position (0x08) (mysong54.xm, mysong79.xm)
