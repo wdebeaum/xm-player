@@ -174,12 +174,12 @@ XMReader.prototype.readSongHeader = function() {
 XMReader.prototype.readPattern = function(pi) {
   var r = this.binaryReader;
   var patternHeaderLength = r.readUint32();
-  if (patternHeaderLength != 9) { console.log('WARNING: wrong pattern header length'); }
+  if (patternHeaderLength != 9) { console.log('WARNING: wrong pattern header length; expected 9 but got ' + patternHeaderLength); }
   var packingType = r.readUint8();
-  if (packingType != 0) { console.log('WARNING: wrong packing type'); }
+  if (packingType != 0) { console.log('WARNING: wrong packing type; expected 0 but got 0x' + packingType.toString(16)); }
   var numberOfRows = r.readUint16();
   if (numberOfRows == 0) { console.log('WARNING: no rows'); }
-  if (numberOfRows > 256) { console.log('WARNING: too many rows'); }
+  if (numberOfRows > 256) { console.log('WARNING: too many rows; expected <=256 but got ' + numberOfRows); }
   //patternsDiv.innerHTML += 'Number of rows: ' + numberOfRows;
   patternsDiv.appendChild(document.createTextNode('Number of rows: ' + numberOfRows));
   var packedPatternDataSize = r.readUint16();
@@ -259,10 +259,10 @@ XMReader.prototype.readPattern = function(pi) {
   }
   if (actualNumberOfRows > 0 && // blank patterns are omitted
       actualNumberOfRows != numberOfRows) {
-    console.log('WARNING: wrong number of rows: expected ' + numberOfRows + ' but got ' + actualNumberOfRows);
+    console.log('WARNING: wrong number of rows; expected ' + numberOfRows + ' but got ' + actualNumberOfRows);
   }
   if (ci != 0) {
-    console.log('WARNING: number of notes not divisible by number of channels');
+    console.log('WARNING: number of notes not divisible by number of channels; remainder=' + ci);
   }
   var tableElement = document.createElement('table');
   patternsDiv.appendChild(tableElement);
@@ -276,7 +276,7 @@ XMReader.prototype.readInstrument = function() {
   var ret = {};
   var instrumentHeaderSize = r.readUint32();
   if (instrumentHeaderSize < 29) {
-    console.log('WARNING: instrument header size too small: ' + instrumentHeaderSize);
+    console.log('WARNING: instrument header size too small; expected >=29 but got ' + instrumentHeaderSize);
   }
   //instrumentsDiv.innerHTML += 'Header size: ' + instrumentHeaderSize + '<br>';
   instrumentsDiv.appendChild(document.createTextNode('Header size: ' + instrumentHeaderSize));
@@ -286,7 +286,7 @@ XMReader.prototype.readInstrument = function() {
   instrumentsDiv.appendChild(document.createTextNode('Name: ' + instrumentName));
   instrumentsDiv.appendChild(document.createElement('br'));
   var instrumentType = r.readUint8();
-  if (instrumentType != 0) { console.log('WARNING: nonzero instrument type'); }
+  if (instrumentType != 0) { console.log('WARNING: wrong instrument type; expected 0 but got 0x' + instrumentType.toString(16)); }
   var numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
     var sampleHeaderSize = r.readUint32();
@@ -339,10 +339,13 @@ XMReader.prototype.readInstrument = function() {
     var reserved = r.readUint16();
     if (instrumentHeaderSize > 243) {
       var count = instrumentHeaderSize - 243;
+      console.log('WARNING: ignoring ' + count + ' extra bytes after first 243 bytes of instrument header');
       r.readIntegers(count, false, 1, true);
     }
   } else if (instrumentHeaderSize > 29) {
-    r.readIntegers(instrumentHeaderSize - 29, false, 1, true);
+    var count = instrumentHeaderSize - 29;
+    console.log('WARNING: ignoring ' + count + ' extra bytes after first 29 bytes of instrument header');
+    r.readIntegers(count, false, 1, true);
   }
   var samples = [];
   ret.samples = samples;
