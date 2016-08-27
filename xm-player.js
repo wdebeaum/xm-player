@@ -261,6 +261,7 @@ XMReader.prototype.readPattern = function(pi) {
 	  table += formatCell(x, cell);
 	  note.push(cell);
 	} else {
+	  // FIXME effect type column should show as '0' instead of '·' when parameter is nonzero, but we haven't gotten there yet
 	  table += ((x==3) ? '·' : '··');
 	  note.push(0);
 	}
@@ -515,6 +516,14 @@ XMReader.prototype.readSampleData = function(s) {
   };
 }
 
+// return the factor to multiply (porta up) or divide (porta down) the playback
+// rate by for an entire row (not just one tick) for the given effect parameter
+// value
+// effectParam is in 16ths of a semitone per tick
+XMReader.prototype.portaToPlaybackRateFactor = function(effectParam) {
+  return Math.pow(2, effectParam * this.currentTempo / (16*12));
+}
+
 function sampleDataToBufferSource(data, bytesPerSample) {
   var bs = actx.createBufferSource();
   var buffer = actx.createBuffer(1, (data.length || 1), 44100);
@@ -545,16 +554,11 @@ function PlayingNote(note, xm, channel) {
   if (noteNum == 0) {
     if (channel !== undefined &&
         xm.channels[channel] !== undefined) {
+      var that = xm.channels[channel];
       if (volume != 0) {
-	xm.channels[channel].setVolume(volume);
+	that.setVolume(volume);
       }
-      switch (effectType) {
-	case 0xf: // set panning
-	  this.setPanning(effectParam);
-	  break;
-	default:
-          /* TODO apply other channel effects */
-      }
+      that.applyEffect(xm, effectType, effectParam);
     }
     return;
   }
@@ -584,15 +588,12 @@ function PlayingNote(note, xm, channel) {
   this.setVolume(volume);
   this.volumeNode.connect(xm.masterVolume);
   this.panningNode = actx.createStereoPanner();
-  var panning = samp.panning;
-  if (effectType == 0x8) { // set panning
-    panning = effectParam;
-  }
-  this.setPanning(panning);
+  this.setPanning(samp.panning);
   this.panningNode.connect(this.volumeNode);
   this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
   var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
   this.bs.playbackRate.value = pbr;
+  this.applyEffect(xm, effectType, effectParam);
   if (samp.loopType) {
     // TODO ping-pong
     this.bs.loop = true;
@@ -616,6 +617,49 @@ function PlayingNote(note, xm, channel) {
   if (this.bs.loop && 'volumeEnvelope' in this.inst &&
       this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][1] == 0) {
     this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.currentBPM);
+  }
+}
+
+PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
+  var oldPbr = this.bs.playbackRate.value;
+  switch (effectType) {
+    case 0x0: // arpeggio
+      // theoretically it would be OK if we did this even with effectParam==0,
+      // but Firefox doesn't like it for some reason (interferes with porta),
+      // and anyway it's less efficient
+      if (effectParam != 0) {
+	// three notes: the current note, the high nibble of the parameter
+	// semitones up from that, and the low nibble up from the current note
+	var secondNote = (effectParam >> 4);
+	var thirdNote = (effectParam & 0xf);
+	var pbrs = [
+	  oldPbr,
+	  oldPbr * Math.pow(2, secondNote / 12),
+	  oldPbr * Math.pow(2, thirdNote / 12)
+	];
+	// rotate through pbrs for each tick in this row
+	for (var i = 0, t = actx.currentTime;
+	     i < xm.currentTempo; // ticks per row
+	     i++, t += xm.tickDuration()) {
+	  this.bs.playbackRate.setValueAtTime(pbrs[i%3], t);
+	}
+	// set back to oldPbr after row finishes
+	this.bs.playbackRate.setValueAtTime(oldPbr, t);
+      }
+      break;
+    case 0x1: // porta up effectParam 16ths of a semitone per tick
+    case 0x2: // porta down
+      var pbrFactor = xm.portaToPlaybackRateFactor(effectParam);
+      var newPbr =
+        ((effectType == 0x1) ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
+      var rowEndTime = actx.currentTime + xm.rowDuration();
+      this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+      break;
+    case 0xf: // set panning
+      this.setPanning(effectParam);
+      break;
+    default:
+      /* TODO apply other channel effects */
   }
 }
 
@@ -697,6 +741,16 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
   rowHighlight.style.display = '';
 }
 
+// return the current duration of one tick in seconds
+XMReader.prototype.tickDuration = function() {
+  return 2.5 / this.currentBPM;
+}
+
+// return the current duration of one pattern row in seconds
+XMReader.prototype.rowDuration = function() {
+  return this.currentTempo * this.tickDuration();
+}
+
 XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, startTime) {
   if (startRow === undefined) { startRow = 0; }
   if (startTime === undefined) { startTime = actx.currentTime; }
@@ -706,7 +760,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
     // play all the notes/commands in the row
     this.playRow(pattern[startRow]);
     // delay one row (in seconds)
-    var delay = this.currentTempo * 2.5 / this.currentBPM;
+    var delay = this.rowDuration();
     // recurse on next row
     afterDelay(startTime, delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
   } else { // after last row
