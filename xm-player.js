@@ -623,7 +623,13 @@ PlayingNote.prototype.setVolume = function(volume) {
 }
 
 PlayingNote.prototype.stop = function(when) {
-  this.bs.stop(when);
+  if (when === undefined || when < actx.currentTime) {
+    when = actx.currentTime;
+  }
+  // avoid clicks at note ends
+  // FIXME magic constants not specified anywhere in the XM spec
+  this.volumeNode.gain.setTargetAtTime(0, when, 0.1);
+  this.bs.stop(when+0.2);
 }
 
 XMReader.prototype.playNote = function(note, channel) {
