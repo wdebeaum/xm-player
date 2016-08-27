@@ -115,7 +115,7 @@ XMReader.prototype.onBinaryLoad = function() {
     //instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
     var h = document.createElement('h3');
     instrumentsDiv.appendChild(h);
-    h.appendChild(document.createTextNode('Instrument ' + (ii+1)));
+    h.appendChild(document.createTextNode('Instrument ' + (ii+1).toString(16)));
     var play = document.createElement('a');
     play.appendChild(document.createTextNode('▶'));
     instrumentsDiv.appendChild(play);
@@ -172,6 +172,29 @@ XMReader.prototype.readSongHeader = function() {
   }
 }
 
+var volumeEffectLetters = ['+', '-', '▼', '◀', 'M', 'P', '▶', 'S', '▲', 'V'];
+
+function formatVolume(val) {
+  if (val < 0x60) {
+    return val.toString(16);
+  } else {
+    return volumeEffectLetters[(val>>4)-6] + (val&0xf).toString(16);
+  }
+}
+
+function formatCell(x, cell) {
+  switch (x) {
+    case 2:
+      return formatVolume(cell);
+    case 3:
+      return cell.toString(36);
+    case 4:
+      return ((cell < 0x10) ? '0' : '') + cell.toString(16);
+    default:
+      return cell.toString(16);
+  }
+}
+
 XMReader.prototype.readPattern = function(pi) {
   var r = this.binaryReader;
   var patternHeaderLength = r.readUint32();
@@ -193,7 +216,7 @@ XMReader.prototype.readPattern = function(pi) {
   var table = '<tr><th>Rw</th>';
   var ci;
   for (ci = 0; ci < this.numberOfChannels; ci++) {
-    table += '<th class="note">Not</th><th class="col-1">In</th><th class="col-2">Vl</th><th class="col-3">ET</th><th class="col-4">EP</th>';
+    table += '<th class="note">Not</th><th class="col-1">In</th><th class="col-2">Vl</th><th class="col-3">E</th><th class="col-4">Pr</th>';
   }
   table += '</tr>';
   var pat = [];
@@ -233,10 +256,10 @@ XMReader.prototype.readPattern = function(pi) {
 	table += '<td class="col-' + x + '">';
 	if (col & (1 << x)) {
 	  var cell = packedPatternData[pdi++]
-	  table += cell.toString(16);
+	  table += formatCell(x, cell);
 	  note.push(cell);
 	} else {
-	  table += '··';
+	  table += ((x==3) ? '·' : '··');
 	  note.push(0);
 	}
 	table += '</td>';
@@ -247,7 +270,7 @@ XMReader.prototype.readPattern = function(pi) {
       note.push(noteNum);
       for (var x = 1; x < 5; x++) {
 	var cell = packedPatternData[pdi++];
-	table += '<td class="col-' + x + '">' + cell.toString(16) + '</td>';
+	table += '<td class="col-' + x + '">' + formatCell(x, cell) + '</td>';
 	note.push(cell);
       }
     }
