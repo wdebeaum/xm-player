@@ -53,6 +53,7 @@ function BinaryFileReader(file) {
     that.data = new DataView(that.buffer);
     that.onload();
   };
+  //console.log('readAsArrayBuffer');
   this.fileReader.readAsArrayBuffer(file);
 }
 
@@ -97,13 +98,19 @@ function XMReader(file) {
 }
 
 XMReader.prototype.onBinaryLoad = function() {
+  //console.log('song header')
   this.readSongHeader();
   for (var pi = 0; pi < this.numberOfPatterns; pi++) {
-    patternsDiv.innerHTML += '<h3>Pattern ' + pi + '</h3>';
+    //console.log('pattern ' + pi);
+    //patternsDiv.innerHTML += '<h3>Pattern ' + pi + '</h3>';
+    var h = document.createElement('h3');
+    patternsDiv.appendChild(h);
+    h.appendChild(document.createTextNode('Pattern ' + pi));
     this.readPattern(pi);
   }
   this.instruments = [];
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
+    //console.log('instrument ' + ii);
     //instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
     var h = document.createElement('h3');
     instrumentsDiv.appendChild(h);
@@ -115,6 +122,7 @@ XMReader.prototype.onBinaryLoad = function() {
     play.onclick = this.playNote.bind(this, [65, ii+1, 0,0,0], 0);
     this.instruments.push(this.readInstrument());
   }
+  //console.log('done reading');
   console.log(this);
 }
 
@@ -172,12 +180,16 @@ XMReader.prototype.readPattern = function(pi) {
   var numberOfRows = r.readUint16();
   if (numberOfRows == 0) { console.log('WARNING: no rows'); }
   if (numberOfRows > 256) { console.log('WARNING: too many rows'); }
-  patternsDiv.innerHTML += 'Number of rows: ' + numberOfRows;
+  //patternsDiv.innerHTML += 'Number of rows: ' + numberOfRows;
+  patternsDiv.appendChild(document.createTextNode('Number of rows: ' + numberOfRows));
   var packedPatternDataSize = r.readUint16();
   var packedPatternData = r.readIntegers(packedPatternDataSize, false, 1, true);
   // unpack and write to #patterns
-  patternsDiv.innerHTML += '<h4>Pattern data</h4>';
-  var table = '<table><tr><th>Rw</th>';
+  //patternsDiv.innerHTML += '<h4>Pattern data</h4>';
+  var h = document.createElement('h4');
+  patternsDiv.appendChild(h);
+  h.appendChild(document.createTextNode('Pattern data'));
+  var table = '<tr><th>Rw</th>';
   var ci;
   for (ci = 0; ci < this.numberOfChannels; ci++) {
     table += '<th>Not</th><th>In</th><th>Vl</th><th>ET</th><th>EP</th>';
@@ -185,8 +197,13 @@ XMReader.prototype.readPattern = function(pi) {
   table += '</tr>';
   var pat = [];
   this.patterns.push(pat);
-  patternsDiv.innerHTML +=
-    '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')">▶</a><br>';
+  //patternsDiv.innerHTML +=
+  //  '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')">▶</a><br>';
+  var a = document.createElement('a');
+  patternsDiv.appendChild(a);
+  a.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')');
+  a.appendChild(document.createTextNode('▶'));
+  a.appendChild(document.createElement('br'));
   var row;
   var pdi = 0;
   ci = 0;
@@ -247,8 +264,9 @@ XMReader.prototype.readPattern = function(pi) {
   if (ci != 0) {
     console.log('WARNING: number of notes not divisible by number of channels');
   }
-  table += '</table>';
-  patternsDiv.innerHTML += table;
+  var tableElement = document.createElement('table');
+  patternsDiv.appendChild(tableElement);
+  tableElement.innerHTML = table;
 }
 
 var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
