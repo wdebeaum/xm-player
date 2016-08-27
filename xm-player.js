@@ -92,6 +92,7 @@ function XMReader(file) {
   this.masterVolume.connect(actx.destination);
   this.binaryReader = new BinaryFileReader(file);
   this.channels = [];
+  this.channelSettings = [];
   this.patterns = [];
   var that = this;
   this.binaryReader.onload = function() { return that.onBinaryLoad(); };
@@ -447,6 +448,8 @@ XMReader.prototype.readSampleData = function(s) {
   var old = 0;
   for (var i = 0; i < deltas.length; i++) {
     var neww = old + deltas[i];
+    // discard overflow
+    neww %= (1 << (8*s.bytesPerSample));
     values.push(neww);
     old = neww;
   }
@@ -519,11 +522,23 @@ function PlayingNote(note, xm, channel) {
     }
     return;
   }
-  // stop previous note on this channel
-  if (channel !== undefined &&
-      xm.channels[channel] !== undefined) {
-    xm.channels[channel].stop();
-    xm.channels[channel] = undefined;
+  if (channel !== undefined) {
+    // stop previous note on this channel
+    if (xm.channels[channel] !== undefined) {
+      xm.channels[channel].stop();
+      xm.channels[channel] = undefined;
+    }
+    // get/set default settings for channel
+    if (xm.channelSettings[channel] === undefined) {
+      xm.channelSettings[channel] = note.slice(0); // clone array
+    } else {
+      if (instrumentNum == 0) {
+	instrumentNum = xm.channelSettings[channel][1];
+      } else {
+	xm.channelSettings[channel][1] = instrumentNum;
+      }
+      // TODO other settings?
+    }
   }
   if (noteNum >= 97) { return; } // not a note
   this.inst = xm.instruments[instrumentNum-1];
