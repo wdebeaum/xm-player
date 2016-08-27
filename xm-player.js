@@ -548,7 +548,13 @@ function PlayingNote(note, xm, channel) {
       if (volume != 0) {
 	xm.channels[channel].setVolume(volume);
       }
-      /* TODO apply channel effects */
+      switch (effectType) {
+	case 0xf: // set panning
+	  this.setPanning(effectParam);
+	  break;
+	default:
+          /* TODO apply other channel effects */
+      }
     }
     return;
   }
@@ -577,6 +583,13 @@ function PlayingNote(note, xm, channel) {
   this.volumeNode = actx.createGain();
   this.setVolume(volume);
   this.volumeNode.connect(xm.masterVolume);
+  this.panningNode = actx.createStereoPanner();
+  var panning = samp.panning;
+  if (effectType == 0x8) { // set panning
+    panning = effectParam;
+  }
+  this.setPanning(panning);
+  this.panningNode.connect(this.volumeNode);
   this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
   var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
   this.bs.playbackRate.value = pbr;
@@ -590,10 +603,10 @@ function PlayingNote(note, xm, channel) {
     this.startTime = actx.currentTime;
     this.envelopeNode = actx.createGain();
     this.setEnvelope();
-    this.envelopeNode.connect(this.volumeNode);
+    this.envelopeNode.connect(this.panningNode);
     this.bs.connect(this.envelopeNode);
   } else {
-    this.bs.connect(this.volumeNode);
+    this.bs.connect(this.panningNode);
   }
   if (channel !== undefined) {
     xm.channels[channel] = this;
@@ -602,14 +615,12 @@ function PlayingNote(note, xm, channel) {
   // stop looping when we reach the end of an envelope that ends at 0 volume
   if (this.bs.loop && 'volumeEnvelope' in this.inst &&
       this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][1] == 0) {
-    // TODO dynamic BPM
     this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.currentBPM);
   }
 }
 
 PlayingNote.prototype.setEnvelope = function() {
   for (var i = 0; i < this.inst.volumeEnvelope.length; i++) {
-    // TODO dynamic BPM
     var targetTime =
       this.startTime + this.inst.volumeEnvelope[i][0] * 2.5 / xm.currentBPM;
     if (targetTime >= actx.currentTime) {
@@ -627,6 +638,10 @@ PlayingNote.prototype.setVolume = function(volume) {
     volumeFraction = (volume - 0x10) / 0x40;
   }
   this.volumeNode.gain.value = volumeFraction;
+}
+
+PlayingNote.prototype.setPanning = function(panning) {
+  this.panningNode.pan.value = (panning - 128) / 128;
 }
 
 PlayingNote.prototype.stop = function(when) {
