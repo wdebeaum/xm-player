@@ -515,7 +515,7 @@ XMReader.prototype.readSampleData = function(s) {
 
 function sampleDataToBufferSource(data, bytesPerSample) {
   var bs = actx.createBufferSource();
-  var buffer = actx.createBuffer(1, data.length, 44100);
+  var buffer = actx.createBuffer(1, (data.length || 1), 44100);
   var floatData = new Float32Array(data.length);
   // 256 values per byte, minus one bit for sign
   var divisor = Math.pow(256, bytesPerSample) / 2;
