@@ -612,7 +612,14 @@ function PlayingNote(note, xm, channel) {
   if (channel !== undefined) {
     xm.channels[channel] = this;
   }
-  this.bs.start();
+  if (effectType == 0x9) { // sample offset
+    var offsetInBytes = effectParam * 0x100;
+    var offsetInSamples = offsetInBytes / samp.bytesPerSample;
+    var offsetInSeconds = offsetInSamples / 44100;
+    this.bs.start(0, offsetInSeconds);
+  } else {
+    this.bs.start();
+  }
   // stop looping when we reach the end of an envelope that ends at 0 volume
   if (this.bs.loop && 'volumeEnvelope' in this.inst &&
       this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][1] == 0) {
