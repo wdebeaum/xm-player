@@ -30,6 +30,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
 
 var actx;
 // HTML elements
+var songDiv;
 var songTable;
 var patternOrderDiv;
 var patternsDiv;
@@ -37,7 +38,8 @@ var instrumentsDiv;
 var rowHighlight;
 function onBodyLoad() {
   actx = new AudioContext();
-  songTable = document.getElementById('song');
+  songDiv = document.getElementById('song');
+  songTable = document.getElementById('song-header');
   patternOrderDiv = document.getElementById('pattern-order-table');
   patternsDiv = document.getElementById('patterns');
   instrumentsDiv = document.getElementById('instruments');
@@ -116,7 +118,7 @@ XMReader.prototype.onBinaryLoad = function() {
     var h = document.createElement('h3');
     instrumentsDiv.appendChild(h);
     h.appendChild(document.createTextNode('Instrument ' + (ii+1).toString(16)));
-    var play = document.createElement('a');
+    var play = document.createElement('button');
     play.appendChild(document.createTextNode('▶'));
     instrumentsDiv.appendChild(play);
     instrumentsDiv.appendChild(document.createElement('br'));
@@ -125,6 +127,9 @@ XMReader.prototype.onBinaryLoad = function() {
   }
   //console.log('done reading');
   console.log(this);
+  if ('onload' in this) {
+    this.onload();
+  }
 }
 
 XMReader.prototype.readSongHeader = function() {
@@ -225,7 +230,7 @@ XMReader.prototype.readPattern = function(pi) {
   this.patterns.push(pat);
   //patternsDiv.innerHTML +=
   //  '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')">▶</a><br>';
-  var a = document.createElement('a');
+  var a = document.createElement('button');
   patternsDiv.appendChild(a);
   a.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')');
   a.appendChild(document.createTextNode('▶'));
@@ -504,7 +509,7 @@ XMReader.prototype.readSampleData = function(s) {
     }
   }
   instrumentsDiv.appendChild(document.createElement('br'));
-  var play = document.createElement('a');
+  var play = document.createElement('button');
   play.appendChild(document.createTextNode('▶'));
   instrumentsDiv.appendChild(play);
   play.onclick = function() {
@@ -811,8 +816,24 @@ XMReader.prototype.playSong = function(startIndex, onEnded) {
 
 var xm;
 
+function clearSong() {
+  songDiv.style.display = 'none';
+  songTable.innerHTML = '';
+  patternOrderDiv.innerHTML = 'Pattern order: ';
+  patternsDiv.innerHTML = '';
+  instrumentsDiv.innerHTML = '';
+  if (xm !== undefined) {
+    xm.masterVolume.disconnect();
+    xm = undefined;
+  }
+}
+
 function onInputFileChange(evt) {
   var file = evt.target.files[0];
+  clearSong();
   xm = new XMReader(file);
-  xm.onload = function() { console.log("successfully loaded file"); };
+  xm.onload = function() {
+    console.log("successfully loaded file");
+    songDiv.style.display = '';
+  }
 }

@@ -11,7 +11,7 @@
  # arpeggio (0x00) (mysong00a.xm, I actually used this thinking it was the volume, I think)
 # add row numbers to patterns
 # scroll to and highlight pattern row currently playing
-? allow loading new song without reloading the page
+# allow loading new song without reloading the page
 ? interpret effects in tooltips
 # fix clicks, very noticeable in mysong60.xm
  > BiquadFilterNode doesn't work, clicks are at all frequencies

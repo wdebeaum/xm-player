@@ -14,9 +14,10 @@
 <body onload="onBodyLoad()">
 <h1>XM player</h1>
 <label>Input XM file: <input type="file" id="xm-file" onchange="onInputFileChange(event)"></label>
+<div id="song" style="display: none">
 <h2>Song</h2>
-<a onclick="xm.playSong()">▶</a><br>
-<table id="song">
+<button onclick="xm.playSong()">▶</button><br>
+<table id="song-header">
 </table>
 <div id="pattern-order-table">Pattern order: </div>
 <h2>Patterns</h2>
@@ -24,5 +25,6 @@
 <h2>Instruments</h2>
 <div id="instruments"></div>
 <div id="row-highlight" style="position: fixed; font-size: small; left: 0; top: 50%; margin-top: -1.5ex; width: 100%; display: none;">▶</div>
+</div>
 </body>
 </html>
