@@ -12,8 +12,6 @@
 # add row numbers to patterns
 # scroll to and highlight pattern row currently playing
 # allow loading new song without reloading the page
-? interpret effects in tooltips
- - include units whenever possible
 # fix clicks, very noticeable in mysong60.xm
  > BiquadFilterNode doesn't work, clicks are at all frequencies
 # degenerate volume envelopes don't behave correctly (spooky00.xm instrument 6)
@@ -22,3 +20,21 @@
  # loop
 - add alternate input to fetch songs from a (CORS-enabled or local) URL
  - when there's a fragment ID after the xm-player.html URL, use it to fill that input, and automatically fetch
+? render to wav/mp3/etc.
+ - in a Data URI so user can save it
+ - or just to get more accurate playback (but without scrolling the page because that would still be inaccurate and thus lose sync with the pre-rendered version)
+? interpret effects in tooltips
+ - include units whenever possible
+- reorganize so that:
+ - reading is separate from displaying
+ - displaying uses appendChild as opposed to innerHTML+= more often
+ - Channels keep note/effect state instead of PlayingNotes
+ - Channels are always present, but not always in a note-on state
+ - note-on-ness states are: sustained, released but still playing, not playing
+ ? Channels in a playing state always have the same AudioNode graph, just different parameters (in non-playing state this can be freed)
+ ? process per-tick instead of per-row (or can this really be accomplished by scheduling parameter changes within each row? I think probably not because some per-tick effects might interact with each other)
+- panning envelopes
+- envelope sustain/loop
+? instrument vibrato
+ - find a reference for how this works; the docs I have don't say
+? all the remaining effects (prioritized by what I see used most in others' music)
