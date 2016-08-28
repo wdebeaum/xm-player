@@ -878,6 +878,7 @@ function readFile(file) {
 function fetchUrlAndRead(url) {
   console.log('fetching XM file from URL: ' + url);
   var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
   xhr.responseType = 'blob';
   xhr.onreadystatechange = function() {
     console.log(xhr.readyState);
@@ -886,7 +887,7 @@ function fetchUrlAndRead(url) {
       readFile(xhr.response);
     } // TODO handle HTTP errors
   }
-  xhr.open('GET', url, true);
+  xhr.send();
 }
 
 function onInputFileChange(evt) {
