@@ -763,7 +763,17 @@ XMReader.prototype.rowDuration = function() {
   return this.currentTempo * this.tickDuration();
 }
 
+var stopPlease = false;
+
 XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, startTime) {
+  if (stopPlease) {
+    // stop showing row highlight
+    rowHighlight.style.display = 'none';
+    if (onEnded !== undefined) {
+      onEnded.call();
+    }
+    return;
+  }
   if (startRow === undefined) { startRow = 0; }
   if (startTime === undefined) { startTime = actx.currentTime; }
   if (startRow < pattern.length) {
@@ -793,7 +803,21 @@ XMReader.prototype.stopAllChannels = function() {
   }
 }
 
+window.stopPlaying = function() {
+  // set stopPlease to make sure onended callbacks don't start new stuff
+  stopPlease = true;
+  if (xm !== undefined) { xm.stopAllChannels(); }
+  // after all the onended callbacks have run, reset stopPlease
+  setTimeout(function() { stopPlease = false; }, 500);
+}
+
 XMReader.prototype.playSong = function(startIndex, onEnded) {
+  if (stopPlease) {
+    if (onEnded !== undefined) {
+      onEnded.call();
+    }
+    return;
+  }
   if (startIndex === undefined) { startIndex = 0; }
   if (startIndex == 0) {
     this.currentTempo = this.defaultTempo;
