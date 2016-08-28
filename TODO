@@ -36,5 +36,10 @@
 - panning envelopes
 - envelope sustain/loop
 ? instrument vibrato
- - find a reference for how this works; the docs I have don't say
+ # find a reference for how this works; the docs I have don't say
+  > https://github.com/STRd6/Milky-Tracker/blob/master/resources/reference/xm-form.txt
+  > https://github.com/Artefact2/libxm/blob/master/src/play.c
+  > ... mikmod (close the tab, oops)
+  > the gist seems to be that "depth" means amplitude and "rate" means frequency (as you'd expect), and "sweep" means the duration of the ramp up to full "depth" (wat?)
+  > units, units, my kingdom for some units...
 ? all the remaining effects (prioritized by what I see used most in others' music)
