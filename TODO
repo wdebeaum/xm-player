@@ -16,6 +16,6 @@
 # fix clicks, very noticeable in mysong60.xm
  > BiquadFilterNode doesn't work, clicks are at all frequencies
 # degenerate volume envelopes don't behave correctly (spooky00.xm instrument 6)
-- more control over playing:
+# more control over playing:
  # stop
- - loop
+ # loop

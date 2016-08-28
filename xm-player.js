@@ -230,11 +230,15 @@ XMReader.prototype.readPattern = function(pi) {
   this.patterns.push(pat);
   //patternsDiv.innerHTML +=
   //  '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')">▶</a><br>';
-  var a = document.createElement('button');
-  patternsDiv.appendChild(a);
-  a.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')');
-  a.appendChild(document.createTextNode('▶'));
-  a.appendChild(document.createElement('br'));
+  var playButton = document.createElement('button');
+  patternsDiv.appendChild(playButton);
+  playButton.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')');
+  playButton.appendChild(document.createTextNode('▶'));
+  var loopButton = document.createElement('button');
+  loopButton.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ', 0, undefined, true)');
+  patternsDiv.appendChild(loopButton);
+  loopButton.appendChild(document.createTextNode('↺'));
+  patternsDiv.appendChild(document.createElement('br'));
   var row;
   var pdi = 0;
   ci = 0;
@@ -765,7 +769,7 @@ XMReader.prototype.rowDuration = function() {
 
 var stopPlease = false;
 
-XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, startTime) {
+XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, loop, startTime) {
   if (stopPlease) {
     // stop showing row highlight
     rowHighlight.style.display = 'none';
@@ -784,7 +788,9 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
     // delay one row (in seconds)
     var delay = this.rowDuration();
     // recurse on next row
-    afterDelay(startTime, delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded));
+    afterDelay(startTime, delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded, loop));
+  } else if (loop) {
+    this.playPattern(pattern, patternIndex, 0, onEnded, loop, startTime);
   } else { // after last row
     // stop showing row highlight
     rowHighlight.style.display = 'none';
@@ -811,7 +817,7 @@ window.stopPlaying = function() {
   setTimeout(function() { stopPlease = false; }, 500);
 }
 
-XMReader.prototype.playSong = function(startIndex, onEnded) {
+XMReader.prototype.playSong = function(startIndex, onEnded, loop) {
   if (stopPlease) {
     if (onEnded !== undefined) {
       onEnded.call();
@@ -828,8 +834,10 @@ XMReader.prototype.playSong = function(startIndex, onEnded) {
       this.patterns[this.patternOrder[startIndex]],
       this.patternOrder[startIndex],
       0,
-      this.playSong.bind(this, startIndex+1, onEnded)
+      this.playSong.bind(this, startIndex+1, onEnded, loop)
     );
+  } else if (loop) {
+    this.playSong(0, onEnded, loop);
   } else { // after last pattern
     this.stopAllChannels();
     if (onEnded !== undefined) {

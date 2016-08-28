@@ -16,7 +16,9 @@
 <label>Input XM file: <input type="file" id="xm-file" onchange="onInputFileChange(event)"></label>
 <div id="song" style="display: none">
 <h2>Song</h2>
-<button onclick="xm.playSong()">▶</button><br>
+<button onclick="xm.playSong()">▶</button>
+<button onclick="xm.playSong(0,undefined,true)">↺</button>
+<br>
 <table id="song-header">
 </table>
 <div id="pattern-order-table">Pattern order: </div>
