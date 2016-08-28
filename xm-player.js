@@ -881,7 +881,6 @@ function fetchUrlAndRead(url) {
   xhr.open('GET', url, true);
   xhr.responseType = 'blob';
   xhr.onreadystatechange = function() {
-    console.log(xhr.readyState);
     if (xhr.readyState == XMLHttpRequest.DONE && xhr.status === 200) {
       console.log('fetched, reading');
       readFile(xhr.response);
