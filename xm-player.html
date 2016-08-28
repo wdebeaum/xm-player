@@ -13,7 +13,9 @@
 </head>
 <body onload="onBodyLoad()">
 <h1>XM player</h1>
-<label>Input XM file: <input type="file" id="xm-file" onchange="onInputFileChange(event)"></label>
+Select a <label>local XM file: <input type="file" id="xm-file" onchange="onInputFileChange(event)"></label><br>
+or enter <label>a URL to fetch a remote XM file from: <input type="url" id="xm-url"></label>
+<button onclick="onFetch(event)">Fetch remote XM file</button>
 <div id="song" style="display: none">
 <h2>Song</h2>
 <button onclick="xm.playSong()">▶</button>

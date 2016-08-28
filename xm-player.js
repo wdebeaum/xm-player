@@ -30,6 +30,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
 
 var actx;
 // HTML elements
+var xmUrlInput;
 var songDiv;
 var songTable;
 var patternOrderDiv;
@@ -38,12 +39,17 @@ var instrumentsDiv;
 var rowHighlight;
 function onBodyLoad() {
   actx = new AudioContext();
+  xmUrlInput = document.getElementById('xm-url');
   songDiv = document.getElementById('song');
   songTable = document.getElementById('song-header');
   patternOrderDiv = document.getElementById('pattern-order-table');
   patternsDiv = document.getElementById('patterns');
   instrumentsDiv = document.getElementById('instruments');
   rowHighlight = document.getElementById('row-highlight');
+  if (location.hash !== '') {
+    var url = location.hash.slice(1); // remove # from beginning
+    fetchUrlAndRead(url);
+  }
 }
 
 function BinaryFileReader(file) {
@@ -860,12 +866,33 @@ function clearSong() {
   }
 }
 
-function onInputFileChange(evt) {
-  var file = evt.target.files[0];
+function readFile(file) {
   clearSong();
   xm = new XMReader(file);
   xm.onload = function() {
     console.log("successfully loaded file");
     songDiv.style.display = '';
   }
+}
+
+function fetchUrlAndRead(url) {
+  console.log('fetching XM file from URL: ' + url);
+  var xhr = new XMLHttpRequest();
+  xhr.responseType = 'blob';
+  xhr.onreadystatechange = function() {
+    console.log(xhr.readyState);
+    if (xhr.readyState == XMLHttpRequest.DONE && xhr.status === 200) {
+      console.log('fetched, reading');
+      readFile(xhr.response);
+    } // TODO handle HTTP errors
+  }
+  xhr.open('GET', url, true);
+}
+
+function onInputFileChange(evt) {
+  readFile(evt.target.files[0]);
+}
+
+function onFetch(evt) {
+  fetchUrlAndRead(xmUrlInput.value);
 }

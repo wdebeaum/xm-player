@@ -18,8 +18,8 @@
 # more control over playing:
  # stop
  # loop
-- add alternate input to fetch songs from a (CORS-enabled or local) URL
- - when there's a fragment ID after the xm-player.html URL, use it to fill that input, and automatically fetch
+# add alternate input to fetch songs from a (CORS-enabled or local) URL
+ # when there's a fragment ID after the xm-player.html URL, use it to fill that input, and automatically fetch
 ? render to wav/mp3/etc.
  - in a Data URI so user can save it
  - or just to get more accurate playback (but without scrolling the page because that would still be inaccurate and thus lose sync with the pre-rendered version)
