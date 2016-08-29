@@ -25,6 +25,7 @@
  - or just to get more accurate playback (but without scrolling the page because that would still be inaccurate and thus lose sync with the pre-rendered version)
 ? interpret effects in tooltips
  - include units whenever possible
+  - figure out what vibrato/tremolo "speed" means
 - reorganize so that:
  - reading is separate from displaying
  - displaying uses appendChild as opposed to innerHTML+= more often

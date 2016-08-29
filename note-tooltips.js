@@ -36,16 +36,16 @@ function noteTooltips(note) {
         'portamento towards this note (instead of triggering it) by ' + effParam + ' 16ths of a semitone per tick in this row';
 	break;
       case 0x04:
-        'vibrato'; // TODO
+        'vibrato: vary pitch ±' + lo + ' / 0xf semitone, at speed ' + hi; // TODO units
 	break;
       case 0x05:
-        'portamento towards this note (instead of triggering it), and volume slide ' + (hi ? 'up by ' + hi : 'down by ' + lo); // TODO volume slide units
+        'portamento towards this note (instead of triggering it), and volume slide ' + upDown + ' / 0x40 of full volume, per tick (I think?)';
 	break;
       case 0x06:
-        'vibrato ???, and volume slide ' + upDown; // TODO volume slide units
+        'do vibrato with previous parameters, and volume slide ' + upDown + ' / 0x40 of full volume, per tick (I think?)';
 	break;
       case 0x07:
-        'tremolo at speed ' + hi + ' and depth ' + lo; // TODO units
+        'tremolo: vary volume up and down by ' + lo + ' / 0x40 of full volume (I think?), at speed ' + hi; // TODO units
 	break;
       case 0x08:
         'set panning to ' + effParam + ' / 0xff right';
@@ -54,7 +54,7 @@ function noteTooltips(note) {
         'start playing the sample for this note at ' + effParam + ' * 0x100 bytes into the sample';
 	break;
       case 0x0a:
-        'volume slide ' + upDown; // TODO units
+        'volume slide ' + upDown + ' / 0x40 of full volume, per tick (I think?)';
 	break;
       case 0x0b:
         'jump to song position ' + effParam + ' in pattern order table';
@@ -68,10 +68,10 @@ function noteTooltips(note) {
       case 0x0e:
         switch (hi) {
 	  case 0x1:
-	    'fine portamento up by ' + lo; // TODO units;
+	    'fine portamento up by ' + lo + ' 16ths of a semitone per row';
 	    break;
 	  case 0x2:
-	    'fine portamento down by ' + lo; // TODO units;
+	    'fine portamento down by ' + lo + ' 16ths of a semitone per row';
 	    break;
 	  case 0x3:
 	    'turn ' + (lo ? 'off' : 'on') + 'glissando mode (rounding portamento pitches to the nearest semitone)';
@@ -96,10 +96,10 @@ function noteTooltips(note) {
 	    'retrigger note every ' + lo + ' ticks in this row';
 	    break;
 	  case 0xa:
-	    'fine volume slide up ' + lo; // TODO units
+	    'fine volume slide up ' + lo + ' / 0x40 of full volume, per row (I think?)';
 	    break;
 	  case 0xb:
-	    'fine volume slide down ' + lo; // TODO units
+	    'fine volume slide down ' + lo + ' / 0x40 of full volume, per row (I think?)';
 	    break;
 	  case 0xc:
 	    'note cut: set note volume to 0 at tick ' + lo + ' in this row';
@@ -127,7 +127,7 @@ function noteTooltips(note) {
         'set global volume to ' + effParam + ' / 0x40';
 	break;
       case 0x11: // H
-        'global volume slide ' + upDown; // TODO units
+        'global volume slide ' + upDown + ' / 0x40 of full volume, per tick (I think?)';
 	break;
       case 0x14: // K
         'release note at tick ' + effParam + ' in this row';
@@ -136,7 +136,7 @@ function noteTooltips(note) {
         'volume envelope jump to ' + effParam + ' ticks';
 	break;
       case 0x19: // P
-        'panning slide ' + (hi ? 'right by ' + hi : 'left by ' + lo); // TODO units
+        'panning slide ' + (hi ? 'right by ' + hi : 'left by ' + lo) + ' / 0x100, per tick (I think?)';
 	break;
       case 0x1b: // R
         // ugh.
@@ -176,10 +176,10 @@ function noteTooltips(note) {
 	case 0x21: // X
 	  switch (hi) {
 	    case 0x1:
-	      'extra fine portamento up by ' + lo; // TODO units
+	      'extra fine portamento up by ' + lo + ' 64ths of a semitone per row';
 	      break;
 	    case 0x2:
-	      'extra fine portamento down by ' + lo; // TODO units
+	      'extra fine portamento down by ' + lo + ' 64ths of a semitone per row';
 	      break;
 	    default:
 	      undefined;
@@ -209,35 +209,35 @@ function noteTooltips(note) {
       case 0x50:
         'set volume to 0x' + (note[2]-0x10).toString(16) + ' / 0x40';
 	break;
-      case 0x60:
-        'volume slide down by ' + volParam; // TODO units
+      case 0x60: // -
+        'volume slide down by ' + volParam + ' / 0x40 of full volume, per tick (I think?)';
 	break;
-      case 0x70:
-        'volume slide up by ' + volParam; // TODO units
+      case 0x70: // +
+        'volume slide up by ' + volParam + ' / 0x40 of full volume, per tick (I think?)';
 	break;
-      case 0x80:
-        'fine volume slide down by ' + volParam; // TODO units
+      case 0x80: // D
+        'fine volume slide down by ' + volParam + ' / 0x40 of full volume, per row (I think?)';
 	break;
-      case 0x90:
-        'fine volume slide up by ' + volParam; // TODO units
+      case 0x90: // U
+        'fine volume slide up by ' + volParam + ' / 0x40 of full volume, per row (I think?)';
 	break;
-      case 0xa0:
+      case 0xa0: // S
         'set vibrato speed to ' + volParam; // TODO units
 	break;
-      case 0xb0:
-        'set vibrato ??? to ' + volParam; // TODO units, and which setting is this?!
+      case 0xb0: // V
+        'vibrato: vary pitch ±' + volParam + ' / 0xf semitone, at previous speed';
 	break;
-      case 0xc0:
+      case 0xc0: // P
         'set panning to ' + volParam + ' / 0xf right';
 	break;
-      case 0xd0:
-        'panning slide left by ' + volParam; // TODO units
+      case 0xd0: // L
+        'panning slide left by ' + volParam + ' / 0x100, per tick (I think?)';
 	break
-      case 0xe0:
-        'panning slide right by ' + volParam; // TODO units
+      case 0xe0: // R
+        'panning slide right by ' + volParam + ' / 0x100, per tick (I think?)';
 	break
-      case 0xf0:
-        'tone portamento by ' + volParam; // TODO units
+      case 0xf0: // M
+        'portamento towards this note (instead of triggering it) by ' + volParam + ' semitones per tick in this row (I think?)';
 	break;
       default:
         undefined;

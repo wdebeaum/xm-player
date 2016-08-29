@@ -185,7 +185,7 @@ XMReader.prototype.readSongHeader = function() {
   }
 }
 
-var volumeEffectLetters = ['+', '-', '▼', '◀', 'M', 'P', '▶', 'S', '▲', 'V'];
+var volumeEffectLetters = ['-', '+', '▼', '▲', 'S', 'V', 'P', '◀', '▶', 'M'];
 
 function formatVolume(val) {
   if (val < 0x60) {
@@ -702,7 +702,7 @@ PlayingNote.prototype.setVolume = function(volume) {
   var volumeFraction = 1;
   if (volume >= 0x10 && volume <= 0x50) {
     volumeFraction = (volume - 0x10) / 0x40;
-  }
+  } // TODO volume effects (or at least don't reset to 1 for volume > 0x50)
   this.volumeNode.gain.value = volumeFraction;
 }
 
