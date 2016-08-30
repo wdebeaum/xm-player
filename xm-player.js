@@ -188,23 +188,12 @@ XMReader.prototype.readSongHeader = function() {
 var volumeEffectLetters = ['-', '+', '▼', '▲', 'S', 'V', 'P', '◀', '▶', 'M'];
 
 function formatVolume(val) {
-  if (val < 0x60) {
+  if (val == 0) {
+    return '··';
+  } else if (val < 0x60) {
     return val.toString(16);
   } else {
     return volumeEffectLetters[(val>>4)-6] + (val&0xf).toString(16);
-  }
-}
-
-function formatCell(x, cell) {
-  switch (x) {
-    case 2:
-      return formatVolume(cell);
-    case 3:
-      return cell.toString(36);
-    case 4:
-      return ((cell < 0x10) ? '0' : '') + cell.toString(16);
-    default:
-      return cell.toString(16);
   }
 }
 
@@ -226,10 +215,10 @@ XMReader.prototype.readPattern = function(pi) {
   var h = document.createElement('h4');
   patternsDiv.appendChild(h);
   h.appendChild(document.createTextNode('Pattern data'));
-  var table = '<tr><th>Rw</th>';
+  var table = '<tr><th title="row number">Rw</th>';
   var ci;
   for (ci = 0; ci < this.numberOfChannels; ci++) {
-    table += '<th class="note">Not</th><th class="col-1">In</th><th class="col-2">Vl</th><th class="col-3">E</th><th class="col-4">Pr</th>';
+    table += '<th class="note" title="note">Not</th><th class="col-1" title="instrument">In</th><th class="col-2" title="volume">Vl</th><th class="col-3" title="effect type">E</th><th class="col-4" title="effect parameters">Pr</th>';
   }
   table += '</tr>';
   var pat = [];
@@ -250,48 +239,65 @@ XMReader.prototype.readPattern = function(pi) {
   ci = 0;
   var actualNumberOfRows = 0;
   while (pdi < packedPatternData.length) {
+    // start row if necessary
     if (ci == 0) {
       table += '<tr id="pattern-' + pi + '-row-' + actualNumberOfRows + '" class="row-' + (actualNumberOfRows % 4) + '"><td class="row-num">' + actualNumberOfRows.toString(16) + '</td>';
       row = [];
       pat.push(row);
     }
+    // decode note
     var note = [];
     row.push(note);
     if (packedPatternData[pdi] & 0x80) {
       var col = packedPatternData[pdi++];
-      table += '<td class="note">';
       if (col & 1) {
         var noteNum = packedPatternData[pdi++];
-	table += noteNumberToName(noteNum);
 	note.push(noteNum);
       } else {
-	table += '···';
 	note.push(0);
       }
-      table += '</td>';
       for (var x = 1; x < 5; x++) {
-	table += '<td class="col-' + x + '">';
 	if (col & (1 << x)) {
 	  var cell = packedPatternData[pdi++]
-	  table += formatCell(x, cell);
 	  note.push(cell);
 	} else {
-	  // FIXME effect type column should show as '0' instead of '·' when parameter is nonzero, but we haven't gotten there yet
-	  table += ((x==3) ? '·' : '··');
 	  note.push(0);
 	}
-	table += '</td>';
       }
     } else {
       var noteNum = packedPatternData[pdi++];
-      table += '<td class="note">' + noteNumberToName(noteNum) + '</td>';
       note.push(noteNum);
       for (var x = 1; x < 5; x++) {
 	var cell = packedPatternData[pdi++];
-	table += '<td class="col-' + x + '">' + formatCell(x, cell) + '</td>';
 	note.push(cell);
       }
     }
+    // get tooltips
+    var tooltips = noteTooltips(note);
+    // wrap them in title attribute if present
+    for (var i = 0; i < 5; i++) {
+      if (tooltips[i] === undefined) {
+	tooltips[i] = '';
+      } else {
+	tooltips[i] = ' title="' + tooltips[i] + '"';
+      }
+    }
+    // write table cells for note
+    table +=
+      '<td class="note"' + tooltips[0] + '>' +
+        noteNumberToName(note[0]) + '</td>' +
+      '<td class="col-1"' + tooltips[1] + '>' +
+        ((note[1] == 0) ? '··' : note[1].toString(16)) + '</td>' +
+      '<td class="col-2"' + tooltips[2] + '>' +
+        formatVolume(note[2]) + '</td>' +
+      '<td class="col-3"' + tooltips[3] + '>' +
+        ((note[3] == 0 && note[4] == 0) ? '·' : note[3].toString(36)) +
+      '</td>' +
+      '<td class="col-4"' + tooltips[4] + '>' +
+        ((note[3] == 0 && note[4] == 0) ? '··' : 
+	  ((note[4] < 0x10) ? '0' : '') + note[4].toString(16)) +
+      '</td>';
+    // end row if necessary
     ci++;
     if (ci == this.numberOfChannels) {
       ci = 0;
