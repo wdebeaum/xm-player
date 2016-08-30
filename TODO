@@ -6,6 +6,7 @@
 # effects used in my music:
  # portamento down (0x02) (mysong77.xm)
   > parameter is Δfreq in 16ths of a semitone (32nds of a tone?) per tick
+  - something's wrong with this in ~/othersmusic/mod/fromdemos/chip.xm pattern 6
  # set note panning position (0x08) (mysong54.xm, mysong79.xm)
  # set song speed/BPM (0x0f) (mysong01c.xm, mysong70b.xm, stargate.xm)
  # arpeggio (0x00) (mysong00a.xm, I actually used this thinking it was the volume, I think)
@@ -23,9 +24,9 @@
 ? render to wav/mp3/etc.
  - in a Data URI so user can save it
  - or just to get more accurate playback (but without scrolling the page because that would still be inaccurate and thus lose sync with the pre-rendered version)
-? interpret effects in tooltips
- - include units whenever possible
-  - figure out what vibrato/tremolo "speed" means
+# interpret effects in tooltips
+ # include units whenever possible
+  # figure out what vibrato/tremolo "speed" means
 - reorganize so that:
  - reading is separate from displaying
  - displaying uses appendChild as opposed to innerHTML+= more often
