@@ -399,15 +399,11 @@ XMReader.prototype.readInstrument = function() {
   ret.samples = samples;
   for (var si = 0; si < numberOfSamples; si++) {
     samples.push(this.readSampleHeader());
-    /*instrumentsDiv.innerHTML += '<h4>Sample ' + si + '</h4>';
-    instrumentsDiv.innerHTML += 'Name: ' + samples[si].name.encodeHTML() + '<br>';*/
+  }
+  for (var si = 0; si < numberOfSamples; si++) {
     var h = document.createElement('h4');
     instrumentsDiv.appendChild(h);
     h.appendChild(document.createTextNode('Sample ' + si));
-    /*instrumentsDiv.appendChild(document.createTextNode('Name: ' + samples[si].name));
-    instrumentsDiv.appendChild(document.createElement('br'));*/
-  }
-  for (var si = 0; si < numberOfSamples; si++) {
     this.drawSampleHeader(samples[si]);
     this.readSampleData(samples[si]);
   }
