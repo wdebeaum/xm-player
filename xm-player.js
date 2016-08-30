@@ -107,34 +107,27 @@ function XMReader(file) {
 }
 
 XMReader.prototype.onBinaryLoad = function() {
-  //console.log('song header')
   this.readSongHeader();
   for (var pi = 0; pi < this.numberOfPatterns; pi++) {
-    //console.log('pattern ' + pi);
-    //patternsDiv.innerHTML += '<h3>Pattern ' + pi + '</h3>';
-    var h = document.createElement('h3');
-    patternsDiv.appendChild(h);
-    h.appendChild(document.createTextNode('Pattern ' + pi));
     this.readPattern(pi);
   }
   this.instruments = [];
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
-    //console.log('instrument ' + ii);
-    //instrumentsDiv.innerHTML += '<h3>Instrument ' + (ii+1) + '</h3>';
-    var h = document.createElement('h3');
-    instrumentsDiv.appendChild(h);
-    h.appendChild(document.createTextNode('Instrument ' + (ii+1).toString(16)));
-    var play = document.createElement('button');
-    play.appendChild(document.createTextNode('▶'));
-    instrumentsDiv.appendChild(play);
-    instrumentsDiv.appendChild(document.createElement('br'));
-    play.onclick = this.playNote.bind(this, [65, ii+1, 0,0,0], 0);
     this.instruments.push(this.readInstrument());
   }
-  //console.log('done reading');
   console.log(this);
   if ('onload' in this) {
     this.onload();
+  }
+}
+
+XMReader.prototype.drawSong = function() {
+  this.drawSongHeader();
+  for (var pi = 0; pi < this.numberOfPatterns; pi++) {
+    this.drawPattern(pi);
+  }
+  for (var ii = 0; ii < this.numberOfInstruments; ii++) {
+    this.drawInstrument(ii);
   }
 }
 
@@ -144,14 +137,12 @@ XMReader.prototype.readSongHeader = function() {
   if (idText != 'Extended Module: ') {
     throw new Error('wrong ID text: ' + idText);
   }
-  var moduleName = r.readZeroPaddedString(20);
-  songTable.innerHTML += '<tr><td>Module name:</td><td>' + moduleName.encodeHTML() + '</td></tr>';
+  this.moduleName = r.readZeroPaddedString(20);
   var magic = r.readUint8();
   if (magic != 0x1a) {
     throw new Error('wrong magic byte: ' + magic);
   }
-  var trackerName = r.readZeroPaddedString(20);
-  songTable.innerHTML += '<tr><td>Tracker name:</td><td>' + trackerName.encodeHTML() + '</td></tr>';
+  this.trackerName = r.readZeroPaddedString(20);
   var versionNumber = r.readUint16();
   if (versionNumber != 0x0104) {
     throw new Error('wrong version number: ' + versionNumber);
@@ -162,38 +153,43 @@ XMReader.prototype.readSongHeader = function() {
   }
   // TODO more errors/warnings
   this.songLength = r.readUint16();
-  songTable.innerHTML += '<tr><td>Song length:</td><td>' + this.songLength + ' patterns<td></tr>';
-  var restartPosition = r.readUint16();
-  songTable.innerHTML += '<tr><td>Restart position:</td><td>pattern ' + restartPosition + ' in pattern order</td></tr>';
+  this.restartPosition = r.readUint16();
   this.numberOfChannels = r.readUint16();
-  songTable.innerHTML += '<tr><td>Number of channels:</td><td>' + this.numberOfChannels + '</td></tr>';
   this.numberOfPatterns = r.readUint16();
-  songTable.innerHTML += '<tr><td>Number of patterns:</td><td>' + this.numberOfPatterns + '</td></tr>';
   this.numberOfInstruments = r.readUint16();
-  songTable.innerHTML += '<tr><td>Number of instruments:</td><td>' + this.numberOfInstruments + '</td></tr>';
-  var flags = r.readUint16();
-  songTable.innerHTML += '<tr><td>Frequency table:</td><td>' + ((flags & 1) ? 'Linear' : 'Amiga') + '</td></tr>';
+  this.flags = r.readUint16();
   this.defaultTempo = r.readUint16();
   this.currentTempo = this.defaultTempo;
-  songTable.innerHTML += '<tr><td>Default tempo:</td><td>' + this.defaultTempo + ' ticks per row<td></tr>';
   this.defaultBPM = r.readUint16();
   this.currentBPM = this.defaultBPM;
-  songTable.innerHTML += '<tr><td>Default BPM:</td><td>' + this.defaultBPM + ' (' + (this.defaultBPM/2.5) + ' ticks per second)<td></tr>';
   this.patternOrder = r.readIntegers(256, false, 1, true).slice(0,this.songLength);
-  for (var i = 0; i < this.songLength; i++) {
-    patternOrderDiv.innerHTML += ((i==0) ? '' : ', ') + this.patternOrder[i];
-  }
 }
 
-var volumeEffectLetters = ['-', '+', '▼', '▲', 'S', 'V', 'P', '◀', '▶', 'M'];
-
-function formatVolume(val) {
-  if (val == 0) {
-    return '··';
-  } else if (val < 0x60) {
-    return val.toString(16);
-  } else {
-    return volumeEffectLetters[(val>>4)-6] + (val&0xf).toString(16);
+XMReader.prototype.drawSongHeader = function() {
+  songTable.innerHTML +=
+    '<tr><td>Module name:</td><td>' +
+      this.moduleName.encodeHTML() + '</td></tr>' +
+    '<tr><td>Tracker name:</td><td>' +
+      this.trackerName.encodeHTML() + '</td></tr>' +
+    '<tr><td>Song length:</td><td>' +
+      this.songLength + ' patterns<td></tr>' +
+    '<tr><td>Restart position:</td><td>pattern ' +
+      this.restartPosition + ' in pattern order</td></tr>' +
+    '<tr><td>Number of channels:</td><td>' +
+      this.numberOfChannels + '</td></tr>' +
+    '<tr><td>Number of patterns:</td><td>' +
+      this.numberOfPatterns + '</td></tr>' +
+    '<tr><td>Number of instruments:</td><td>' +
+      this.numberOfInstruments + '</td></tr>' +
+    '<tr><td>Frequency table:</td><td>' +
+      ((this.flags & 1) ? 'Linear' : 'Amiga') + '</td></tr>' +
+    '<tr><td>Default tempo:</td><td>' +
+      this.defaultTempo + ' ticks per row<td></tr>' +
+    '<tr><td>Default BPM:</td><td>' +
+      this.defaultBPM +
+      ' (' + (this.defaultBPM/2.5) + ' ticks per second)<td></tr>';
+  for (var i = 0; i < this.songLength; i++) {
+    patternOrderDiv.innerHTML += ((i==0) ? '' : ', ') + this.patternOrder[i];
   }
 }
 
@@ -206,42 +202,18 @@ XMReader.prototype.readPattern = function(pi) {
   var numberOfRows = r.readUint16();
   if (numberOfRows == 0) { console.log('WARNING: no rows'); }
   if (numberOfRows > 256) { console.log('WARNING: too many rows; expected <=256 but got ' + numberOfRows); }
-  //patternsDiv.innerHTML += 'Number of rows: ' + numberOfRows;
-  patternsDiv.appendChild(document.createTextNode('Number of rows: ' + numberOfRows));
   var packedPatternDataSize = r.readUint16();
   var packedPatternData = r.readIntegers(packedPatternDataSize, false, 1, true);
-  // unpack and write to #patterns
-  //patternsDiv.innerHTML += '<h4>Pattern data</h4>';
-  var h = document.createElement('h4');
-  patternsDiv.appendChild(h);
-  h.appendChild(document.createTextNode('Pattern data'));
-  var table = '<tr><th title="row number">Rw</th>';
-  var ci;
-  for (ci = 0; ci < this.numberOfChannels; ci++) {
-    table += '<th class="note" title="note">Not</th><th class="col-1" title="instrument">In</th><th class="col-2" title="volume">Vl</th><th class="col-3" title="effect type">E</th><th class="col-4" title="effect parameters">Pr</th>';
-  }
-  table += '</tr>';
+  // unpack
   var pat = [];
   this.patterns.push(pat);
-  //patternsDiv.innerHTML +=
-  //  '<a onclick="xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')">▶</a><br>';
-  var playButton = document.createElement('button');
-  patternsDiv.appendChild(playButton);
-  playButton.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ')');
-  playButton.appendChild(document.createTextNode('▶'));
-  var loopButton = document.createElement('button');
-  loopButton.setAttribute('onclick', 'xm.playPattern(xm.patterns[' + (this.patterns.length-1) +'], ' + (this.patterns.length-1) + ', 0, undefined, true)');
-  patternsDiv.appendChild(loopButton);
-  loopButton.appendChild(document.createTextNode('↺'));
-  patternsDiv.appendChild(document.createElement('br'));
   var row;
   var pdi = 0;
-  ci = 0;
+  var ci = 0;
   var actualNumberOfRows = 0;
   while (pdi < packedPatternData.length) {
     // start row if necessary
     if (ci == 0) {
-      table += '<tr id="pattern-' + pi + '-row-' + actualNumberOfRows + '" class="row-' + (actualNumberOfRows % 4) + '"><td class="row-num">' + actualNumberOfRows.toString(16) + '</td>';
       row = [];
       pat.push(row);
     }
@@ -272,36 +244,10 @@ XMReader.prototype.readPattern = function(pi) {
 	note.push(cell);
       }
     }
-    // get tooltips
-    var tooltips = noteTooltips(note);
-    // wrap them in title attribute if present
-    for (var i = 0; i < 5; i++) {
-      if (tooltips[i] === undefined) {
-	tooltips[i] = '';
-      } else {
-	tooltips[i] = ' title="' + tooltips[i] + '"';
-      }
-    }
-    // write table cells for note
-    table +=
-      '<td class="note"' + tooltips[0] + '>' +
-        noteNumberToName(note[0]) + '</td>' +
-      '<td class="col-1"' + tooltips[1] + '>' +
-        ((note[1] == 0) ? '··' : note[1].toString(16)) + '</td>' +
-      '<td class="col-2"' + tooltips[2] + '>' +
-        formatVolume(note[2]) + '</td>' +
-      '<td class="col-3"' + tooltips[3] + '>' +
-        ((note[3] == 0 && note[4] == 0) ? '·' : note[3].toString(36)) +
-      '</td>' +
-      '<td class="col-4"' + tooltips[4] + '>' +
-        ((note[3] == 0 && note[4] == 0) ? '··' : 
-	  ((note[4] < 0x10) ? '0' : '') + note[4].toString(16)) +
-      '</td>';
     // end row if necessary
     ci++;
     if (ci == this.numberOfChannels) {
       ci = 0;
-      table += '</tr>';
       actualNumberOfRows++;
     }
   }
@@ -312,12 +258,107 @@ XMReader.prototype.readPattern = function(pi) {
   if (ci != 0) {
     console.log('WARNING: number of notes not divisible by number of channels; remainder=' + ci);
   }
+}
+
+function appendHeading(parentNode, level, text) {
+  var h = document.createElement('h' + level);
+  h.appendChild(document.createTextNode(text));
+  parentNode.appendChild(h);
+}
+
+// onclick may be a string to put in the onclick attribute, or a function to
+// assign to the onclick property
+function appendButton(parentNode, label, onclick) {
+  var button = document.createElement('button');
+  switch (typeof onclick) {
+    case 'string':
+      button.setAttribute('onclick', onclick);
+      break;
+    case "function":
+      button.onclick = onclick;
+      break;
+    case "undefined":
+      // do nothing
+      break;
+    default:
+      console.log('weird onclick value for button labeled ' + label);
+      console.log(onclick);
+  }
+  button.appendChild(document.createTextNode(label));
+  parentNode.appendChild(button);
+}
+
+function appendBreak(parentNode) {
+  parentNode.appendChild(document.createElement('br'));
+}
+
+function appendLine(parentNode, text) {
+  parentNode.appendChild(document.createTextNode(text));
+  appendBreak(parentNode);
+}
+
+var volumeEffectLetters = ['-', '+', '▼', '▲', 'S', 'V', 'P', '◀', '▶', 'M'];
+
+function formatVolume(val) {
+  if (val == 0) {
+    return '··';
+  } else if (val < 0x60) {
+    return val.toString(16);
+  } else {
+    return volumeEffectLetters[(val>>4)-6] + (val&0xf).toString(16);
+  }
+}
+
+XMReader.prototype.drawPattern = function(pi) {
+  appendHeading(patternsDiv, 3, 'Pattern ' + pi);
+  appendButton(patternsDiv, '▶',
+      this.playPattern.bind(this, this.patterns[pi], pi));
+  appendButton(patternsDiv, '↺',
+      this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, true));
+  appendBreak(patternsDiv);
+  var table = '<tr><th title="row number">Rw</th>';
+  var ci;
+  for (ci = 0; ci < this.numberOfChannels; ci++) {
+    table += '<th class="note" title="note">Not</th><th class="col-1" title="instrument">In</th><th class="col-2" title="volume">Vl</th><th class="col-3" title="effect type">E</th><th class="col-4" title="effect parameters">Pr</th>';
+  }
+  table += '</tr>';
+  for (var ri = 0; ri < this.patterns[pi].length; ri++) {
+    var row = this.patterns[pi][ri];
+    table += '<tr id="pattern-' + pi + '-row-' + ri + '" class="row-' + (ri % 4) + '"><td class="row-num">' + ri.toString(16) + '</td>';
+    for (var ci = 0; ci < row.length; ci++) {
+      var note = row[ci];
+      // get tooltips
+      var tooltips = noteTooltips(note);
+      // wrap them in title attribute if present
+      for (var i = 0; i < 5; i++) {
+	if (tooltips[i] === undefined) {
+	  tooltips[i] = '';
+	} else {
+	  tooltips[i] = ' title="' + tooltips[i] + '"';
+	}
+      }
+      // write table cells for note
+      table +=
+	'<td class="note"' + tooltips[0] + '>' +
+	  noteNumberToName(note[0]) + '</td>' +
+	'<td class="col-1"' + tooltips[1] + '>' +
+	  ((note[1] == 0) ? '··' : note[1].toString(16)) + '</td>' +
+	'<td class="col-2"' + tooltips[2] + '>' +
+	  formatVolume(note[2]) + '</td>' +
+	'<td class="col-3"' + tooltips[3] + '>' +
+	  ((note[3] == 0 && note[4] == 0) ? '·' : note[3].toString(36)) +
+	'</td>' +
+	'<td class="col-4"' + tooltips[4] + '>' +
+	  ((note[3] == 0 && note[4] == 0) ? '··' :
+	    ((note[4] < 0x10) ? '0' : '') + note[4].toString(16)) +
+	'</td>';
+    }
+    table += '</tr>';
+  }
   var tableElement = document.createElement('table');
   patternsDiv.appendChild(tableElement);
   tableElement.innerHTML = table;
 }
-
-var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
 
 XMReader.prototype.readInstrument = function() {
   var r = this.binaryReader;
@@ -326,30 +367,13 @@ XMReader.prototype.readInstrument = function() {
   if (instrumentHeaderSize < 29) {
     console.log('WARNING: instrument header size too small; expected >=29 but got ' + instrumentHeaderSize);
   }
-  //instrumentsDiv.innerHTML += 'Header size: ' + instrumentHeaderSize + '<br>';
-  instrumentsDiv.appendChild(document.createTextNode('Header size: ' + instrumentHeaderSize));
-  instrumentsDiv.appendChild(document.createElement('br'));
-  var instrumentName = r.readZeroPaddedString(22);
-  //instrumentsDiv.innerHTML += 'Name: ' + instrumentName.encodeHTML() + '<br>';
-  instrumentsDiv.appendChild(document.createTextNode('Name: ' + instrumentName));
-  instrumentsDiv.appendChild(document.createElement('br'));
+  ret.name = r.readZeroPaddedString(22);
   var instrumentType = r.readUint8();
   if (instrumentType != 0) { console.log('WARNING: wrong instrument type; expected 0 but got 0x' + instrumentType.toString(16)); }
-  var numberOfSamples = r.readUint16();
+  ret.numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
     var sampleHeaderSize = r.readUint32();
-    //instrumentsDiv.innerHTML += 'Sample header size: ' + sampleHeaderSize + '<br>';
-    instrumentsDiv.appendChild(document.createTextNode('Sample header size: ' + sampleHeaderSize));
-    instrumentsDiv.appendChild(document.createElement('br'));
     ret.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
-    if (numberOfSamples > 1) {
-      var snfan = 'Sample number for all notes:';
-      for (var i = 0; i < 96; i++) {
-	snfan += ' ' + ret.sampleNumberForAllNotes[i];
-      }
-      instrumentsDiv.appendChild(document.createTextNode(snfan));
-      instrumentsDiv.appendChild(document.createElement('br'));
-    }
     // volume and panning envelopes
     var pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
     var pointsForPanningEnvelope = r.readIntegers(24, false, 2, true);
@@ -363,27 +387,15 @@ XMReader.prototype.readInstrument = function() {
     var panningLoopEndPoint = r.readUint8();
     var volumeType = r.readUint8();
     var panningType = r.readUint8();
-    this.drawVolumePanning('Volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
-    if (volumeType & 1) {
-      ret.volumeEnvelope = [];
-      for (var i = 0; i < numberOfVolumePoints; i++) {
-	ret.volumeEnvelope.push(pointsForVolumeEnvelope.slice(i*2,i*2+2));
-      }
-    }
-    this.drawVolumePanning('Panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
+    this.interpretVolumePanning(ret, 'volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
+    this.interpretVolumePanning(ret, 'panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
     // vibrato
-    var vibratoType = r.readUint8();
-    var vibratoSweep = r.readUint8();
-    var vibratoDepth = r.readUint8();
-    var vibratoRate = r.readUint8();
-    if (vibratoType || vibratoSweep || vibratoDepth || vibratoRate) {
-      instrumentsDiv.appendChild(document.createTextNode('Vibrato: ' + vibratoTypes[vibratoType] + '(sweep=' + vibratoSweep + '; depth=' + vibratoDepth + '; rate=' + vibratoRate + ')'));
-      instrumentsDiv.appendChild(document.createElement('br'));
-    }
+    ret.vibratoType = r.readUint8();
+    ret.vibratoSweep = r.readUint8();
+    ret.vibratoDepth = r.readUint8();
+    ret.vibratoRate = r.readUint8();
     // other
-    var volumeFadeout = r.readUint16();
-    instrumentsDiv.appendChild(document.createTextNode('Volume fadeout: ' + volumeFadeout));
-    instrumentsDiv.appendChild(document.createElement('br'));
+    ret.volumeFadeout = r.readUint16();
     var reserved = r.readUint16();
     if (instrumentHeaderSize > 243) {
       var count = instrumentHeaderSize - 243;
@@ -395,28 +407,69 @@ XMReader.prototype.readInstrument = function() {
     console.log('WARNING: ignoring ' + count + ' extra bytes after first 29 bytes of instrument header');
     r.readIntegers(count, false, 1, true);
   }
-  var samples = [];
-  ret.samples = samples;
-  for (var si = 0; si < numberOfSamples; si++) {
-    samples.push(this.readSampleHeader());
+  ret.samples = [];
+  for (var si = 0; si < ret.numberOfSamples; si++) {
+    ret.samples.push(this.readSampleHeader());
   }
-  for (var si = 0; si < numberOfSamples; si++) {
-    var h = document.createElement('h4');
-    instrumentsDiv.appendChild(h);
-    h.appendChild(document.createTextNode('Sample ' + si));
-    this.drawSampleHeader(samples[si]);
-    this.readSampleData(samples[si]);
+  for (var si = 0; si < ret.numberOfSamples; si++) {
+    this.readSampleData(ret.samples[si]);
   }
   return ret;
 }
 
+var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
+
+XMReader.prototype.drawInstrument = function(ii) {
+  appendHeading(instrumentsDiv, 3, 'Instrument ' + (ii+1).toString(16));
+  appendButton(instrumentsDiv, '▶',
+      this.playNote.bind(this, [65, ii+1, 0,0,0], 0));
+  appendBreak(instrumentsDiv);
+  var ret = this.instruments[ii];
+  appendLine(instrumentsDiv, 'Name: ' + ret.name);
+  if (ret.numberOfSamples > 1 && 'sampleNumberForAllNotes' in ret) {
+    var snfan = 'Sample number for all notes:';
+    for (var i = 0; i < 96; i++) {
+      snfan += ' ' + ret.sampleNumberForAllNotes[i];
+    }
+    appendLine(instrumentsDiv, snfan);
+  }
+  this.drawVolumePanning(ret, 'volume');
+  this.drawVolumePanning(ret, 'panning');
+  // TODO vibrato units
+  if (ret.vibratoType || ret.vibratoSweep || ret.vibratoDepth || ret.vibratoRate) {
+    appendLine(instrumentsDiv, 'Vibrato: ' + ret.vibratoTypes[ret.vibratoType] + '(sweep=' + ret.vibratoSweep + '; depth=' + ret.vibratoDepth + '; rate=' + ret.vibratoRate + ')');
+  }
+  appendLine(instrumentsDiv, 'Volume fadeout: ' + ret.volumeFadeout);
+  for (var si = 0; si < ret.numberOfSamples; si++) {
+    appendHeading(instrumentsDiv, 4, 'Sample ' + si);
+    this.drawSampleHeader(ret.samples[si]);
+    this.drawSampleData(ret.samples[si]);
+  }
+}
+
+XMReader.prototype.interpretVolumePanning = function(ret, volumeOrPanning, points, numberOfPoints, sustainPoint, loopStartPoint, loopEndPoint, type) {
+  if (type & 1) { // On
+    var envelope = ret[volumeOrPanning + 'Envelope'] = [];
+    for (var i = 0; i < numberOfPoints; i++) {
+      envelope.push(points.slice(i*2,i*2+2));
+    }
+    if (type & 2) { // Sustain
+      ret[volumeOrPanning + 'SustainPoint'] = sustainPoint;
+    }
+    if (type & 4) { // Loop
+      ret[volumeOrPanning + 'LoopStartPoint'] = loopStartPoint;
+      ret[volumeOrPanning + 'LoopEndPoint'] = loopEndPoint;
+    }
+  }
+}
+
 var svgNS = 'http://www.w3.org/2000/svg';
 
-XMReader.prototype.drawVolumePanning = function(volumeOrPanning, points, numberOfPoints, sustainPoint, loopStartPoint, loopEndPoint, type) {
-  if (type & 1) { // On
-    var h = document.createElement('h4');
-    instrumentsDiv.appendChild(h);
-    h.appendChild(document.createTextNode(volumeOrPanning));
+XMReader.prototype.drawVolumePanning = function(ret, volumeOrPanning) {
+  if ((volumeOrPanning + 'Envelope') in ret) {
+    appendHeading(instrumentsDiv, 4,
+	// capitalize
+	volumeOrPanning.slice(0,1).toUpperCase() + volumeOrPanning.slice(1));
     var svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('viewBox', '0 0 64 64');
     svg.setAttribute('width',128);
@@ -430,19 +483,18 @@ XMReader.prototype.drawVolumePanning = function(volumeOrPanning, points, numberO
     svg.appendChild(bg);
     var p = document.createElementNS(svgNS, 'path');
     var path = '';
-    for (var i = 0; i < numberOfPoints; i++) {
-      path += (i == 0 ? 'M ' : ' L ') + points[i*2] + ' ' + (64-points[i*2+1]);
+    var envelope = ret[volumeOrPanning + 'Envelope'];
+    for (var i = 0; i < envelope.length; i++) {
+      path += (i == 0 ? 'M ' : ' L ') + envelope[i][0] + ' ' + (64-envelope[i][1]);
     }
     p.setAttribute('d', path);
     svg.appendChild(p);
-    instrumentsDiv.appendChild(document.createElement('br'));
-    if (type & 2) { // Sustain
-      instrumentsDiv.appendChild(document.createTextNode('Sustain point: ' + sustainPoint));
-      instrumentsDiv.appendChild(document.createElement('br'));
+    appendBreak(instrumentsDiv);
+    if ((volumeOrPanning + 'SustainPoint') in ret) {
+      appendLine(instrumentsDiv, 'Sustain point: ' + ret[volumeOrPanning + 'SustainPoint']);
     }
-    if (type & 4) { // Loop
-      instrumentsDiv.appendChild(document.createTextNode('Loop: ' + loopStartPoint + '-' + loopEndPoint));
-      instrumentsDiv.appendChild(document.createElement('br'));
+    if ((volumeOrPanning + 'LoopStartPoint') in ret) { // Loop
+      appendLine(instrumentsDiv, 'Loop: ' + ret[volumeOrPanning + 'LoopStartPoint'] + '-' + ret[volumeOrPanning + 'LoopEndPoint']);
     }
   }
 }
@@ -486,20 +538,22 @@ XMReader.prototype.drawSampleHeader = function(s) {
 
 XMReader.prototype.readSampleData = function(s) {
   var deltas = this.binaryReader.readIntegers(s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
-  var values = [];
-  s.data = values;
+  s.data = [];
   var old = 0;
   for (var i = 0; i < deltas.length; i++) {
     var neww = old + deltas[i];
     // discard overflow
     neww %= (1 << (8*s.bytesPerSample));
-    values.push(neww);
+    s.data.push(neww);
     old = neww;
   }
+}
+
+XMReader.prototype.drawSampleData = function(s) {
   // draw waveform on a canvas
   var canvas = document.createElement('canvas');
   canvas.setAttribute('height', 256);
-  var horizDivisor = Math.floor(values.length / 512);
+  var horizDivisor = Math.floor(s.data.length / 512);
   if (horizDivisor == 0) { horizDivisor = 1; }
   canvas.setAttribute('width', 512);
   instrumentsDiv.appendChild(canvas);
@@ -509,8 +563,8 @@ XMReader.prototype.readSampleData = function(s) {
   ctx.fillStyle = 'white';
   var min = 256;
   var max = 0;
-  for (var i = 0; i < values.length; i++) {
-    var scaled = 128 + ((s.bytesPerSample == 2) ? Math.trunc(values[i]/256) : values[i]);
+  for (var i = 0; i < s.data.length; i++) {
+    var scaled = 128 + ((s.bytesPerSample == 2) ? Math.trunc(s.data[i]/256) : s.data[i]);
     if (scaled < min) { min = scaled; }
     if (scaled > max) { max = scaled; }
     if ((i % horizDivisor) == 0) {
@@ -520,17 +574,16 @@ XMReader.prototype.readSampleData = function(s) {
       max = 0;
     }
   }
-  instrumentsDiv.appendChild(document.createElement('br'));
-  var play = document.createElement('button');
-  play.appendChild(document.createTextNode('▶'));
-  instrumentsDiv.appendChild(play);
-  play.onclick = function() {
-    var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
-    // TODO apply sample volume (0-64), panning (left 0 - right 255)
-    bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
-    bs.connect(xm.masterVolume);
-    bs.start();
-  };
+  appendBreak(instrumentsDiv);
+  appendButton(instrumentsDiv, '▶',
+    function() {
+      var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
+      // TODO apply sample volume (0-64), panning (left 0 - right 255)
+      bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
+      bs.connect(xm.masterVolume);
+      bs.start();
+    }
+  );
 }
 
 // return the factor to multiply (porta up) or divide (porta down) the playback
@@ -872,6 +925,7 @@ function readFile(file) {
   clearSong();
   xm = new XMReader(file);
   xm.onload = function() {
+    xm.drawSong();
     console.log("successfully loaded file");
     songDiv.style.display = '';
   }

@@ -28,8 +28,8 @@
  # include units whenever possible
   # figure out what vibrato/tremolo "speed" means
 - reorganize so that:
- - reading is separate from displaying
- - displaying uses appendChild as opposed to innerHTML+= more often
+ # reading is separate from displaying
+ # displaying uses appendChild as opposed to innerHTML+= more often
  - Channels keep note/effect state instead of PlayingNotes
  - Channels are always present, but not always in a note-on state
  - note-on-ness states are: sustained, released but still playing, not playing
