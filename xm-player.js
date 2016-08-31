@@ -654,7 +654,7 @@ function PlayingNote(note, xm, channel) {
   var sampleNum = this.inst.sampleNumberForAllNotes[noteNum];
   var samp = this.inst.samples[sampleNum];
   this.volumeNode = actx.createGain();
-  this.setVolume(volume);
+  this.setVolume(volume, samp.volume);
   this.volumeNode.connect(xm.masterVolume);
   this.panningNode = actx.createStereoPanner();
   this.setPanning(samp.panning);
@@ -752,8 +752,11 @@ PlayingNote.prototype.setEnvelope = function() {
   }
 }
 
-PlayingNote.prototype.setVolume = function(volume) {
+PlayingNote.prototype.setVolume = function(volume, defaultVolume) {
   var volumeFraction = 1;
+  if (defaultVolume !== undefined) {
+    volumeFraction = defaultVolume / 0x40;
+  }
   if (volume >= 0x10 && volume <= 0x50) {
     volumeFraction = (volume - 0x10) / 0x40;
   } // TODO volume effects (or at least don't reset to 1 for volume > 0x50)
