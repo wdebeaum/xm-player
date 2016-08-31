@@ -661,6 +661,7 @@ function PlayingNote(note, xm, channel) {
   this.panningNode.connect(this.volumeNode);
   this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
   var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
+  this.nextPbr = pbr;
   this.bs.playbackRate.value = pbr;
   this.applyEffect(xm, effectType, effectParam);
   if (samp.loopType) {
@@ -697,7 +698,10 @@ function PlayingNote(note, xm, channel) {
 }
 
 PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
-  var oldPbr = this.bs.playbackRate.value;
+  // NOTE: this.bs.playbackRate.value might be wrong in the context of the
+  // song; we always set this.nextPbr to the value it *should* be at the start
+  // of the next row
+  var oldPbr = this.nextPbr;
   switch (effectType) {
     case 0x0: // arpeggio
       // theoretically it would be OK if we did this even with effectParam==0,
@@ -730,6 +734,7 @@ PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
         ((effectType == 0x1) ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
       var rowEndTime = actx.currentTime + xm.rowDuration();
       this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+      this.nextPbr = newPbr;
       break;
     case 0xf: // set panning
       this.setPanning(effectParam);
