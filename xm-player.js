@@ -736,8 +736,15 @@ PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
       this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
       this.nextPbr = newPbr;
       break;
-    case 0xc:
+    case 0xb: // jump to song position
+      xm.nextSongPosition = effectParam;
+      break;
+    case 0xc: // set volume
       this.setVolume(effectParam);
+      break;
+    case 0xd: // jump to row in next pattern
+      xm.nextPatternStartRow = effectParam;
+      xm.nextSongPosition = xm.currentSongPosition + 1;
       break;
     case 0xf: // set panning
       this.setPanning(effectParam);
@@ -851,6 +858,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
   }
   if (startRow === undefined) { startRow = 0; }
   if (startTime === undefined) { startTime = actx.currentTime; }
+  if (this.nextSongPosition !== undefined) { startRow = pattern.length; }
   if (startRow < pattern.length) {
     // update display
     highlightAndCenterRow(patternIndex, startRow);
@@ -872,6 +880,8 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
 }
 
 XMReader.prototype.stopAllChannels = function() {
+  this.nextSongPosition = undefined;
+  this.nextPatternStartRow = undefined;
   for (var i = 0; i < this.channels.length; i++) {
     if (this.channels[i] !== undefined) {
       this.channels[i].stop();
@@ -900,11 +910,21 @@ XMReader.prototype.playSong = function(startIndex, onEnded, loop) {
     this.currentTempo = this.defaultTempo;
     this.currentBPM = this.defaultBPM;
   }
+  if (this.nextSongPosition !== undefined) {
+    startIndex = this.nextSongPosition;
+    this.nextSongPosition = undefined;
+  }
   if (startIndex < this.patternOrder.length) {
+    this.currentSongPosition = startIndex;
+    var startRow = 0;
+    if (this.nextPatternStartRow !== undefined) {
+      startRow = this.nextPatternStartRow;
+      this.nextPatternStartRow = undefined;
+    }
     this.playPattern(
       this.patterns[this.patternOrder[startIndex]],
       this.patternOrder[startIndex],
-      0,
+      startRow,
       this.playSong.bind(this, startIndex+1, onEnded, loop)
     );
   } else if (loop) {
