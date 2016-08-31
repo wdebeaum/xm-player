@@ -436,7 +436,7 @@ XMReader.prototype.drawInstrument = function(ii) {
   this.drawVolumePanning(ret, 'volume');
   this.drawVolumePanning(ret, 'panning');
   if (ret.vibratoType || ret.vibratoSweep || ret.vibratoDepth || ret.vibratoRate) {
-    appendLine(instrumentsDiv, 'Vibrato: ' + ret.vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
+    appendLine(instrumentsDiv, 'Vibrato: ' + vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
   }
   appendLine(instrumentsDiv, 'Volume fadeout: ' + ret.volumeFadeout);
   for (var si = 0; si < ret.numberOfSamples; si++) {
@@ -735,6 +735,9 @@ PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
       var rowEndTime = actx.currentTime + xm.rowDuration();
       this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
       this.nextPbr = newPbr;
+      break;
+    case 0xc:
+      this.setVolume(effectParam);
       break;
     case 0xf: // set panning
       this.setPanning(effectParam);
