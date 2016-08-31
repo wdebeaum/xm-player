@@ -435,9 +435,8 @@ XMReader.prototype.drawInstrument = function(ii) {
   }
   this.drawVolumePanning(ret, 'volume');
   this.drawVolumePanning(ret, 'panning');
-  // TODO vibrato units
   if (ret.vibratoType || ret.vibratoSweep || ret.vibratoDepth || ret.vibratoRate) {
-    appendLine(instrumentsDiv, 'Vibrato: ' + ret.vibratoTypes[ret.vibratoType] + '(sweep=' + ret.vibratoSweep + '; depth=' + ret.vibratoDepth + '; rate=' + ret.vibratoRate + ')');
+    appendLine(instrumentsDiv, 'Vibrato: ' + ret.vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
   }
   appendLine(instrumentsDiv, 'Volume fadeout: ' + ret.volumeFadeout);
   for (var si = 0; si < ret.numberOfSamples; si++) {
