@@ -312,9 +312,9 @@ function formatVolume(val) {
 XMReader.prototype.drawPattern = function(pi) {
   appendHeading(patternsDiv, 3, 'Pattern ' + pi);
   appendButton(patternsDiv, '▶',
-      this.playPattern.bind(this, this.patterns[pi], pi));
+      this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, false, undefined));
   appendButton(patternsDiv, '↺',
-      this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, true));
+      this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, true, undefined));
   appendBreak(patternsDiv);
   var table = '<tr><th title="row number">Rw</th>';
   var ci;
