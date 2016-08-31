@@ -46,11 +46,11 @@ function noteTooltips(note) {
       case 0x0a:
         return 'volume slide ' + upDown + ' / 0x40 of full volume, per tick';
       case 0x0b:
-        return 'jump to song position ' + effParam + ' in pattern order table';
+        return 'jump to song position ' + effParam + ' in pattern order table after this row';
       case 0x0c:
         return 'set volume to ' + effParam + ' / 0x40';
       case 0x0d:
-        return 'jump to row ' + hi + lo + ' in next pattern in pattern order table';
+        return 'jump to row ' + hi + lo + ' in next pattern in pattern order table after this row';
       case 0x0e:
         switch (hi) {
 	  case 0x1:
