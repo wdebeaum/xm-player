@@ -605,18 +605,29 @@ function reset() {
   // XM stuff
   this.noteNum = 0;
   this.instrument = undefined;
-  this.volume = 0x40;
-  this.panning = 0x80;
+  this.sample = undefined;
+  this.volume = 0x40; // silent 0x00 - 0x40 full
+  this.panning = 0x80; // left 0x00 - 0xff right
   this.vibrato = {
-    type: 0,
-    sweep: 0,
-    depth: 0,
-    rate: 0
+    on: false,
+    type: 0, // see vibratoTypes
+    sweep: 0, // ticks between start and full depth
+    depth: 0, // 16ths of a semitone variation from original pitch
+    rate: 0 // 256ths of a cycle per tick
+  };
+  this.tremolo = {
+    on: false,
+    type: 0, // see vibratoTypes
+    // no sweep
+    depth: 0, // 16ths of a semitone variation from original pitch
+    rate: 0 // 256ths of a cycle per tick
   };
   // Web Audio API stuff
   this.nextPbr = 1.0; // playback rate at start of next row
+  // TODO stop/disconnect these if they exist already
   this.vibratoNode = undefined; // oscillator
   this.vibratoAmplitudeNode = undefined; // gain
+  this.tremoloNode = undefined; // oscillator
   this.volumeNode = undefined; // gain
   this.volumeEnvelopeNode = undefined; // gain w/scheduled changes
   this.panningNode = undefined; // stereo panner
@@ -624,26 +635,118 @@ function reset() {
   this.bs = undefined; // BufferSource
 },
 
-/* Begin playing a note immediately, but schedule things as if when were
- * the time the note started.
+/* Begin playing a note at time "when". If "when" has passed, begin
+ * immediately, but schedule things as if "when" were the time the note
+ * started. This logic applies to the "when" parameter of all Channel methods.
  */
-function triggerNote(when, noteNum, instrumentNum) {
-  // TODO
+function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
+  // first, stop playing the old note, if any
+  if (this.isPlaying()) {
+    this.cutNote(when);
+  }
+  // get XM resources/settings
+  this.instrument = xm.instruments[instrumentNum];
+  var sample = this.instrument.sampleNumberForAllNotes[noteNum];
+  this.nextPbr =
+    computePlaybackRate(noteNum, sample.relativeNoteNumber, sample.finetune);
+  this.vibrato.on = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
+  this.vibrato.type = this.instrument.vibratoType;
+  this.vibrato.sweep = this.instrument.vibratoSweep;
+  this.vibrato.depth = this.instrument.vibratoDepth;
+  this.vibrato.rate = this.instrument.vibratoRate;
+  // set up node graph
+  this.volumeNode = actx.createGain();
+  this.volumeNode.connect(xm.masterVolume);
+  var downstream = this.volumeNode;
+  if ('volumeEnvelope' in this.instrument) {
+    this.volumeEnvelopeNode = actx.createGain();
+    this.volumeEnvelopeNode.connect(downstream);
+    downstream = this.volumeEnvelopeNode;
+  }
+  this.panningNode = actx.createStereoPanner();
+  this.panningNode.connect(downstream);
+  downstream = this.panningNode;
+  if ('panningEnvelope' in this.instrument) {
+    this.panningEnvelopeNode = actx.createStereoPanner();
+    this.panningEnvelopeNode.connect(downstream);
+    downstream = this.panningEnvelopeNode;
+  }
+  this.bs = sampleDataToBufferSource(sample.data, sample.bytesPerSample);
+  if (sample.loopType) {
+    // TODO ping-pong
+    this.bs.loop = true;
+    this.bs.loopStart = sample.loopStart / sample.bytesPerSample / 44100;
+    this.bs.loopEnd = (sample.loopStart + sample.loopLength) / sample.bytesPerSample / 44100;
+  }
+  this.bs.connect(downstream);
+  // NOTE: Vibrato nodes are created in triggerVibrato since that can happen at
+  // other times too, and tremolo nodes are created/destroyed in triggerTremolo.
+  // apply settings to nodes
+  this.bs.playbackRate.value = nextPbr;
+  setVolume(sample.volume);
+  setPanning(sample.panning);
+  // trigger everything
+  this.startTime = when;
+  if ('volumeEnvelope' in this.instrument) { triggerEnvelope(when, 'volume'); }
+  if ('panningEnvelope' in this.instrument){ triggerEnvelope(when, 'panning'); }
+  if (this.vibrato.on) { this.triggerVibrato(when); }
+  // trigger sample
+  if (offsetInBytes != 0) {
+    var offsetInSamples = offsetInBytes / sample.bytesPerSample;
+    var offsetInSeconds = offsetInSamples / 44100;
+    this.bs.start(when, offsetInSeconds);
+  } else {
+    this.bs.start(when);
+  }
 },
 
-/* End the sustain phase of playing the note. */
+/* End the sustain phase of playing the note and enter the release phase. */
 function releaseNote(when) {
   // TODO
+  releaseEnvelope(when, 'volume');
+  releaseEnvelope(when, 'panning');
 },
 
-/* Immediately stop playing the note (no release fadeout etc.) */
+/* Stop playing the note (no release phase). */
 function cutNote(when) {
+  // TODO
+  cutEnvelope(when, 'volume');
+  cutEnvelope(when, 'panning');
+},
+
+/* Return true iff a note is currently playing on this channel (even in release
+ * phase).
+ */
+function isPlaying() {
   // TODO
 },
 
 /* Process a 5-element note/command array from a pattern. */
 function applyCommand(when, note) {
-  // TODO
+  var noteNum = note[0];
+  var instrumentNum = note[1];
+  var volume = note[2];
+  var effectType = note[3];
+  var effectParam = note[4];
+  var sampleOffset = 0;
+  if (effectType == 0x09) { sampleOffset = effectParam * 0x100; /* bytes */ }
+  var triggerDelay = 0;
+  if (effectType == 0x0e && (effectParam >> 4) == 0xd) { // delay note
+    triggerDelay = xm.tickDuration() * (effectParam & 0xf);
+  }
+  if (effectType == 0x03 || effectType == 0x05 ||
+      (volume & 0xf0) == 0xf0)) {
+    // portamento to note, don't trigger a new note
+  } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
+    // delay pattern
+    // TODO
+  } else if (noteNum == 96) {
+    releaseNote(when + triggerDelay);
+  } else if (noteNum > 0 && noteNum < 96) {
+    triggerNote(when + triggerDelay, noteNum, instrumentNum, sampleOffset);
+  }
+  applyVolume(when, volume);
+  applyEffect(when, effectType, effectParam);
 },
 
 /* Process the effect/param portion of a note. */
@@ -653,6 +756,23 @@ function applyEffect(when, effectType, effectParam) {
 
 /* Process the volume column of a note. */
 function applyVolume(when, volume) {
+  // TODO
+},
+
+/* Set the actual note volume (not the volume column, not the envelope). */
+function setVolume(when, volume) {
+  // TODO
+},
+
+/* Set the note panning (not the envelope). */
+function setPanning(when, panning) {
+  // TODO
+},
+
+/* Set a vibrato or tremolo (depending on "which") parameter (depending on
+ * "key") to "val". Automatically set this[which].on based on the new settings.
+ */
+function setVibratoTremolo(when, which, key, val) {
   // TODO
 },
 
@@ -667,13 +787,35 @@ function loopEnvelope(when, which) {
   // TODO
 },
 
-/* Release volume/panning envelope from sustain mode. */
+/* End the sustain phase of volume/panning envelope and enter the release
+ * phase.
+ */
 function releaseEnvelope(when, which) {
   // TODO
 },
 
-/* Immediately stop using volume/panning envelope. */
+/* Stop using volume/panning envelope (no release phase). */
 function cutEnvelope(when, which) {
+  // TODO
+},
+
+/* Set up nodes and trigger vibrato. */
+function triggerVibrato(when) {
+  // TODO
+},
+
+/* Stop vibrato and tear down nodes. */
+function cutVibrato(when) {
+  // TODO
+},
+
+/* Set up nodes and trigger tremolo. */
+function triggerTremolo(when) {
+  // TODO
+},
+
+/* Stop tremolo and tear down nodes. */
+function cutTremolo(when) {
   // TODO
 }
 
