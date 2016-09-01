@@ -593,6 +593,93 @@ XMReader.prototype.portaToPlaybackRateFactor = function(effectParam) {
   return Math.pow(2, effectParam * this.currentTempo / (16*12));
 }
 
+/* One channel/track as it plays notes. */
+function Channel(xm) {
+  this.xm = xm;
+  this.reset();
+}
+
+[ // begin Channel methods
+
+function reset() {
+  // XM stuff
+  this.noteNum = 0;
+  this.instrument = undefined;
+  this.volume = 0x40;
+  this.panning = 0x80;
+  this.vibrato = {
+    type: 0,
+    sweep: 0,
+    depth: 0,
+    rate: 0
+  };
+  // Web Audio API stuff
+  this.nextPbr = 1.0; // playback rate at start of next row
+  this.vibratoNode = undefined; // oscillator
+  this.vibratoAmplitudeNode = undefined; // gain
+  this.volumeNode = undefined; // gain
+  this.volumeEnvelopeNode = undefined; // gain w/scheduled changes
+  this.panningNode = undefined; // stereo panner
+  this.panningEnvelopeNode = undefined; // stereo panner w/scheduled changes
+  this.bs = undefined; // BufferSource
+},
+
+/* Begin playing a note immediately, but schedule things as if when were
+ * the time the note started.
+ */
+function triggerNote(when, noteNum, instrumentNum) {
+  // TODO
+},
+
+/* End the sustain phase of playing the note. */
+function releaseNote(when) {
+  // TODO
+},
+
+/* Immediately stop playing the note (no release fadeout etc.) */
+function cutNote(when) {
+  // TODO
+},
+
+/* Process a 5-element note/command array from a pattern. */
+function applyCommand(when, note) {
+  // TODO
+},
+
+/* Process the effect/param portion of a note. */
+function applyEffect(when, effectType, effectParam) {
+  // TODO
+},
+
+/* Process the volume column of a note. */
+function applyVolume(when, volume) {
+  // TODO
+},
+
+/* Begin volume/panning envelope (depending on "which"). */
+function triggerEnvelope(when, which) {
+  // TODO
+},
+
+/* Sustain volume/panning envelope by looping back to the loop start position.
+ */
+function loopEnvelope(when, which) {
+  // TODO
+},
+
+/* Release volume/panning envelope from sustain mode. */
+function releaseEnvelope(when, which) {
+  // TODO
+},
+
+/* Immediately stop using volume/panning envelope. */
+function cutEnvelope(when, which) {
+  // TODO
+}
+
+// end Channel methods
+].forEach(function(fn) { Channel.prototype[fn.name] = fn; });
+
 function sampleDataToBufferSource(data, bytesPerSample) {
   var bs = actx.createBufferSource();
   var buffer = actx.createBuffer(1, (data.length || 1), 44100);
