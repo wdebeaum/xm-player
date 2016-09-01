@@ -1,3 +1,5 @@
+var useNewStuff = false;
+
 if (!String.prototype.encodeHTML) {
   String.prototype.encodeHTML = function () {
     return this.replace(/&/g, '&amp;')
@@ -155,6 +157,11 @@ XMReader.prototype.readSongHeader = function() {
   this.songLength = r.readUint16();
   this.restartPosition = r.readUint16();
   this.numberOfChannels = r.readUint16();
+  if (useNewStuff) {
+    for (var ci = 0; ci < this.numberOfChannels; ci++) {
+      this.channels[ci] = new Channel(this);
+    }
+  }
   this.numberOfPatterns = r.readUint16();
   this.numberOfInstruments = r.readUint16();
   this.flags = r.readUint16();
@@ -603,6 +610,7 @@ function Channel(xm) {
 
 function reset() {
   // XM stuff
+  this.notePhase = 'off'; // 'sustain', 'release'
   this.noteNum = 0;
   this.instrument = undefined;
   this.sample = undefined;
@@ -642,12 +650,13 @@ function reset() {
  */
 function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   // first, stop playing the old note, if any
-  if (this.isPlaying()) {
+  if (this.notePhase != 'off') {
     this.cutNote(when);
   }
+  this.notePhase = 'sustain';
   // get XM resources/settings
-  this.instrument = xm.instruments[instrumentNum];
-  var sample = this.instrument.sampleNumberForAllNotes[noteNum];
+  this.instrument = xm.instruments[instrumentNum-1];
+  var sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
   this.nextPbr =
     computePlaybackRate(noteNum, sample.relativeNoteNumber, sample.finetune);
   this.vibrato.on = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
@@ -683,9 +692,9 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   // NOTE: Vibrato nodes are created in triggerVibrato since that can happen at
   // other times too, and tremolo nodes are created/destroyed in triggerTremolo.
   // apply settings to nodes
-  this.bs.playbackRate.value = nextPbr;
-  setVolume(sample.volume);
-  setPanning(sample.panning);
+  this.bs.playbackRate.value = this.nextPbr;
+  this.setVolume(when, sample.volume);
+  this.setPanning(when, sample.panning);
   // trigger everything
   this.startTime = when;
   if ('volumeEnvelope' in this.instrument) { triggerEnvelope(when, 'volume'); }
@@ -703,23 +712,26 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
 
 /* End the sustain phase of playing the note and enter the release phase. */
 function releaseNote(when) {
-  // TODO
-  releaseEnvelope(when, 'volume');
-  releaseEnvelope(when, 'panning');
+  this.notePhase = 'release';
+  this.releaseEnvelope(when, 'volume');
+  this.releaseEnvelope(when, 'panning');
+  this.cutNote(when); // TODO
 },
 
 /* Stop playing the note (no release phase). */
 function cutNote(when) {
-  // TODO
-  cutEnvelope(when, 'volume');
-  cutEnvelope(when, 'panning');
-},
-
-/* Return true iff a note is currently playing on this channel (even in release
- * phase).
- */
-function isPlaying() {
-  // TODO
+  if (this.notePhase == 'off') { return; }
+  this.notePhase = 'off';
+  if (when === undefined || when < actx.currentTime) {
+    when = actx.currentTime;
+  }
+  // avoid clicks at note ends
+  // FIXME magic constants not specified anywhere in the XM spec
+  this.volumeNode.gain.setTargetAtTime(0, when, 0.1);
+  this.bs.stop(when+0.2);
+  this.cutEnvelope(when, 'volume');
+  this.cutEnvelope(when, 'panning');
+  // TODO disconnect/undefine nodes when when+0.2 passes
 },
 
 /* Process a 5-element note/command array from a pattern. */
@@ -733,7 +745,7 @@ function applyCommand(when, note) {
   if (effectType == 0x09) { sampleOffset = effectParam * 0x100; /* bytes */ }
   var triggerDelay = 0;
   if (effectType == 0x0e && (effectParam >> 4) == 0xd) { // delay note
-    triggerDelay = xm.tickDuration() * (effectParam & 0xf);
+    triggerDelay = this.xm.tickDuration() * (effectParam & 0xf);
   }
   if (effectType == 0x03 || effectType == 0x05 ||
       (volume & 0xf0) == 0xf0) {
@@ -742,32 +754,114 @@ function applyCommand(when, note) {
     // delay pattern
     // TODO
   } else if (noteNum == 96) {
-    releaseNote(when + triggerDelay);
+    this.releaseNote(when + triggerDelay);
   } else if (noteNum > 0 && noteNum < 96) {
-    triggerNote(when + triggerDelay, noteNum, instrumentNum, sampleOffset);
+    this.triggerNote(when + triggerDelay, noteNum, instrumentNum, sampleOffset);
   }
-  applyVolume(when, volume);
-  applyEffect(when, effectType, effectParam);
+  this.applyVolume(when, volume);
+  this.applyEffect(when, effectType, effectParam);
 },
 
 /* Process the effect/param portion of a note. */
 function applyEffect(when, effectType, effectParam) {
-  // TODO
+  // NOTE: this.bs.playbackRate.value might be wrong in the context of the
+  // song; we always set this.nextPbr to the value it *should* be at the start
+  // of the next row
+  var oldPbr = this.nextPbr;
+  switch (effectType) {
+    case 0x0: // arpeggio
+      // theoretically it would be OK if we did this even with effectParam==0,
+      // but Firefox doesn't like it for some reason (interferes with porta),
+      // and anyway it's less efficient
+      if (effectParam != 0) {
+	// three notes: the current note, the high nibble of the parameter
+	// semitones up from that, and the low nibble up from the current note
+	var secondNote = (effectParam >> 4);
+	var thirdNote = (effectParam & 0xf);
+	var pbrs = [
+	  oldPbr,
+	  oldPbr * Math.pow(2, secondNote / 12),
+	  oldPbr * Math.pow(2, thirdNote / 12)
+	];
+	// rotate through pbrs for each tick in this row
+	for (var i = 0, t = when;
+	     i < this.xm.currentTempo; // ticks per row
+	     i++, t += this.xm.tickDuration()) {
+	  this.bs.playbackRate.setValueAtTime(pbrs[i%3], t);
+	}
+	// set back to oldPbr after row finishes
+	this.bs.playbackRate.setValueAtTime(oldPbr, t);
+      }
+      break;
+    case 0x1: // porta up effectParam 16ths of a semitone per tick
+    case 0x2: // porta down
+      var pbrFactor = this.xm.portaToPlaybackRateFactor(effectParam);
+      var newPbr =
+        ((effectType == 0x1) ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
+      var rowEndTime = when + this.xm.rowDuration();
+      this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+      this.nextPbr = newPbr;
+      break;
+    case 0xb: // jump to song position
+      this.xm.nextSongPosition = effectParam;
+      break;
+    case 0xc: // set volume
+      this.setVolume(when, effectParam);
+      break;
+    case 0xd: // jump to row in next pattern
+      this.xm.nextPatternStartRow = effectParam;
+      this.xm.nextSongPosition = xm.currentSongPosition + 1;
+      break;
+    case 0xf: // set panning
+      this.setPanning(when, effectParam);
+      break;
+    default:
+      /* TODO apply other channel effects */
+  }
 },
 
 /* Process the volume column of a note. */
 function applyVolume(when, volume) {
-  // TODO
+  switch (volume >> 4) {
+    case 0x0:
+      // do nothing
+      break;
+    case 0x1:
+    case 0x3:
+    case 0x4:
+    case 0x5:
+      this.setVolume(when, volume - 0x10);
+      break;
+    case 0x6: // volume slide down
+    case 0x7: // volume slide up
+    case 0x8: // fine volume slide down
+    case 0x9: // fine volume slide up
+    case 0xa: // set vibrato speed
+    case 0xb: // perform vibrato and set depth
+    case 0xc: // set panning
+    case 0xd: // panning slide left
+    case 0xe: // panning slide right
+    case 0xf: // portamento to note
+      // TODO
+      break;
+  }
 },
 
 /* Set the actual note volume (not the volume column, not the envelope). */
 function setVolume(when, volume) {
-  // TODO
+  this.volume = volume;
+  if (this.notePhase != 'off') {
+    this.volumeNode.gain.setValueAtTime(when, volume / 0x40);
+  }
 },
 
 /* Set the note panning (not the envelope). */
 function setPanning(when, panning) {
-  // TODO
+  this.panning = panning;
+  if (this.notePhase != 'off') {
+    // FIXME operation not supported on FF?
+    //this.panningNode.pan.setValueAtTime(when, (panning - 0x80) / 0x80);
+  }
 },
 
 /* Set a vibrato or tremolo (depending on "which") parameter (depending on
@@ -779,7 +873,19 @@ function setVibratoTremolo(when, which, key, val) {
 
 /* Begin volume/panning envelope (depending on "which"). */
 function triggerEnvelope(when, which) {
-  // TODO
+  var envelope = this.instrument[which + 'Envelope'];
+  var envelopeNode = this[which + 'EnvelopeNode'];
+  for (var i = 0; i < envelope.length; i++) {
+    var targetTime =
+      this.startTime + envelope[i][0] * 2.5 / this.xm.currentBPM;
+    if (targetTime >= actx.currentTime) {
+      envelopeNode.gain.linearRampToValueAtTime(
+	envelope[i][1] / 64,
+	targetTime
+      );
+    }
+    // TODO loop/sustain/release
+  }
 },
 
 /* Sustain volume/panning envelope by looping back to the loop start position.
@@ -792,12 +898,15 @@ function loopEnvelope(when, which) {
  * phase.
  */
 function releaseEnvelope(when, which) {
-  // TODO
+  var envelopeNode = this[which + 'EnvelopeNode'];
+  if (envelopeNode !== undefined) { envelopeNode.cancelScheduledValues(when); }
+  // TODO schedule post-loopEnd part
 },
 
 /* Stop using volume/panning envelope (no release phase). */
 function cutEnvelope(when, which) {
-  // TODO
+  var envelopeNode = this[which + 'EnvelopeNode'];
+  if (envelopeNode !== undefined) { envelopeNode.cancelScheduledValues(when); }
 },
 
 /* Set up nodes and trigger vibrato. */
@@ -1023,7 +1132,11 @@ PlayingNote.prototype.stop = function(when) {
 }
 
 XMReader.prototype.playNote = function(note, channel) {
-  new PlayingNote(note, this, channel);
+  if (useNewStuff) {
+    this.channels[channel].applyCommand(actx.currentTime /*FIXME*/, note);
+  } else {
+    new PlayingNote(note, this, channel);
+  }
 }
 
 XMReader.prototype.playRow = function(row) {
@@ -1113,9 +1226,13 @@ XMReader.prototype.stopAllChannels = function() {
   this.nextSongPosition = undefined;
   this.nextPatternStartRow = undefined;
   for (var i = 0; i < this.channels.length; i++) {
-    if (this.channels[i] !== undefined) {
-      this.channels[i].stop();
-      this.channels[i] = undefined;
+    if (useNewStuff) {
+      this.channels[i].cutNote();
+    } else {
+      if (this.channels[i] !== undefined) {
+	this.channels[i].stop();
+	this.channels[i] = undefined;
+      }
     }
   }
 }
