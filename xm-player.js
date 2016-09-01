@@ -628,6 +628,7 @@ function reset() {
   this.vibratoNode = undefined; // oscillator
   this.vibratoAmplitudeNode = undefined; // gain
   this.tremoloNode = undefined; // oscillator
+  this.tremoloAmplitudeNode = undefined; // gain
   this.volumeNode = undefined; // gain
   this.volumeEnvelopeNode = undefined; // gain w/scheduled changes
   this.panningNode = undefined; // stereo panner
