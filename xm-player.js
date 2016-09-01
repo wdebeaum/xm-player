@@ -736,7 +736,7 @@ function applyCommand(when, note) {
     triggerDelay = xm.tickDuration() * (effectParam & 0xf);
   }
   if (effectType == 0x03 || effectType == 0x05 ||
-      (volume & 0xf0) == 0xf0)) {
+      (volume & 0xf0) == 0xf0) {
     // portamento to note, don't trigger a new note
   } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
     // delay pattern
