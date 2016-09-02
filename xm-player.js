@@ -612,6 +612,7 @@ function reset() {
   // XM stuff
   this.notePhase = 'off'; // 'sustain', 'release'
   this.noteNum = 0;
+  this.targetNoteNum = 0;
   this.instrument = undefined;
   this.sample = undefined;
   this.volume = 0x40; // silent 0x00 - 0x40 full
@@ -654,11 +655,12 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     this.cutNote(when);
   }
   this.notePhase = 'sustain';
+  this.noteNum = this.targetNoteNum = noteNum;
   // get XM resources/settings
   this.instrument = xm.instruments[instrumentNum-1];
-  var sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
+  this.sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
   this.nextPbr =
-    computePlaybackRate(noteNum, sample.relativeNoteNumber, sample.finetune);
+    computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
   this.vibrato.on = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
   this.vibrato.type = this.instrument.vibratoType;
   this.vibrato.sweep = this.instrument.vibratoSweep;
@@ -681,28 +683,28 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     this.panningEnvelopeNode.connect(downstream);
     downstream = this.panningEnvelopeNode;
   }
-  this.bs = sampleDataToBufferSource(sample.data, sample.bytesPerSample);
-  if (sample.loopType) {
+  this.bs = sampleDataToBufferSource(this.sample.data, this.sample.bytesPerSample);
+  if (this.sample.loopType) {
     // TODO ping-pong
     this.bs.loop = true;
-    this.bs.loopStart = sample.loopStart / sample.bytesPerSample / 44100;
-    this.bs.loopEnd = (sample.loopStart + sample.loopLength) / sample.bytesPerSample / 44100;
+    this.bs.loopStart = this.sample.loopStart / this.sample.bytesPerSample / 44100;
+    this.bs.loopEnd = (this.sample.loopStart + this.sample.loopLength) / this.sample.bytesPerSample / 44100;
   }
   this.bs.connect(downstream);
   // NOTE: Vibrato nodes are created in triggerVibrato since that can happen at
   // other times too, and tremolo nodes are created/destroyed in triggerTremolo.
   // apply settings to nodes
   this.bs.playbackRate.value = this.nextPbr;
-  this.setVolume(when, sample.volume);
-  this.setPanning(when, sample.panning);
+  this.setVolume(when, this.sample.volume);
+  this.setPanning(when, this.sample.panning);
   // trigger everything
   this.startTime = when;
-  if ('volumeEnvelope' in this.instrument) { triggerEnvelope(when, 'volume'); }
-  if ('panningEnvelope' in this.instrument){ triggerEnvelope(when, 'panning'); }
+  if ('volumeEnvelope' in this.instrument) { this.triggerEnvelope(when, 'volume'); }
+  if ('panningEnvelope' in this.instrument){ this.triggerEnvelope(when, 'panning'); }
   if (this.vibrato.on) { this.triggerVibrato(when); }
   // trigger sample
   if (offsetInBytes != 0) {
-    var offsetInSamples = offsetInBytes / sample.bytesPerSample;
+    var offsetInSamples = offsetInBytes / this.sample.bytesPerSample;
     var offsetInSeconds = offsetInSamples / 44100;
     this.bs.start(when, offsetInSeconds);
   } else {
@@ -741,6 +743,7 @@ function applyCommand(when, note) {
   var volume = note[2];
   var effectType = note[3];
   var effectParam = note[4];
+  this.applyGlobalEffect(when, effectType, effectParam);
   var sampleOffset = 0;
   if (effectType == 0x09) { sampleOffset = effectParam * 0x100; /* bytes */ }
   var triggerDelay = 0;
@@ -750,6 +753,12 @@ function applyCommand(when, note) {
   if (effectType == 0x03 || effectType == 0x05 ||
       (volume & 0xf0) == 0xf0) {
     // portamento to note, don't trigger a new note
+    if (noteNum > 0 && noteNum < 96) {
+      this.targetNoteNum = noteNum;
+      if (this.notePhase != 'off') {
+	this.setVolume(when, this.sample.volume);
+      }
+    }
   } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
     // delay pattern
     // TODO
@@ -760,6 +769,30 @@ function applyCommand(when, note) {
   }
   this.applyVolume(when, volume);
   this.applyEffect(when, effectType, effectParam);
+},
+
+function applyGlobalEffect(when, effectType, effectParam) {
+  switch (effectType) {
+    case 0xf: // set tempo/BPM
+      if (effectParam < 0x20) {
+	this.xm.currentTempo = effectParam;
+      } else {
+	this.xm.currentBPM = effectParam;
+      }
+      break;
+    default:
+      /* TODO apply other global effects */
+  }
+},
+
+function portamento(when, up, amount) {
+  var oldPbr = this.nextPbr;
+  var pbrFactor = this.xm.portaToPlaybackRateFactor(amount);
+  var newPbr = (up ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
+  console.log({ up: up, targetNoteNum: this.targetNoteNum, noteNum: this.noteNum, pbrFactor: pbrFactor, oldPbr: oldPbr, newPbr: newPbr });
+  var rowEndTime = when + this.xm.rowDuration();
+  this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+  this.nextPbr = newPbr;
 },
 
 /* Process the effect/param portion of a note. */
@@ -795,12 +828,15 @@ function applyEffect(when, effectType, effectParam) {
       break;
     case 0x1: // porta up effectParam 16ths of a semitone per tick
     case 0x2: // porta down
-      var pbrFactor = this.xm.portaToPlaybackRateFactor(effectParam);
-      var newPbr =
-        ((effectType == 0x1) ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
-      var rowEndTime = when + this.xm.rowDuration();
-      this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
-      this.nextPbr = newPbr;
+      this.portamento(when, (effectType == 0x1), effectParam);
+      break;
+    case 0x3: // porta towards note
+      // FIXME /4 isn't what the docs say, but it's going too far...
+      // need to make this stop when it reaches the target... maybe targetPbr instead of targetNoteNum
+      this.portamento(when, (this.targetNoteNum > this.noteNum), effectParam / 4);
+      break;
+    case 0x8: // set panning
+      this.setPanning(when, effectParam);
       break;
     case 0xb: // jump to song position
       this.xm.nextSongPosition = effectParam;
@@ -811,9 +847,6 @@ function applyEffect(when, effectType, effectParam) {
     case 0xd: // jump to row in next pattern
       this.xm.nextPatternStartRow = effectParam;
       this.xm.nextSongPosition = xm.currentSongPosition + 1;
-      break;
-    case 0xf: // set panning
-      this.setPanning(when, effectParam);
       break;
     default:
       /* TODO apply other channel effects */
@@ -851,7 +884,11 @@ function applyVolume(when, volume) {
 function setVolume(when, volume) {
   this.volume = volume;
   if (this.notePhase != 'off') {
-    this.volumeNode.gain.setValueAtTime(when, volume / 0x40);
+    if (when > actx.currentTime) {
+      this.volumeNode.gain.setValueAtTime(volume / 0x40, when);
+    } else {
+      this.volumeNode.gain.value = volume / 0x40;
+    }
   }
 },
 
@@ -859,8 +896,11 @@ function setVolume(when, volume) {
 function setPanning(when, panning) {
   this.panning = panning;
   if (this.notePhase != 'off') {
-    // FIXME operation not supported on FF?
-    //this.panningNode.pan.setValueAtTime(when, (panning - 0x80) / 0x80);
+    if (when > actx.currentTime) {
+      this.panningNode.pan.setValueAtTime((panning - 0x80) / 0x80, when);
+    } else {
+      this.panningNode.pan.value = (panning - 0x80) / 0x80;
+    }
   }
 },
 
@@ -899,14 +939,20 @@ function loopEnvelope(when, which) {
  */
 function releaseEnvelope(when, which) {
   var envelopeNode = this[which + 'EnvelopeNode'];
-  if (envelopeNode !== undefined) { envelopeNode.cancelScheduledValues(when); }
+  if (envelopeNode !== undefined) {
+    envelopeNode[(which == 'volume') ? 'gain' : 'pan']. // FIXME ugh
+      cancelScheduledValues(when);
+  }
   // TODO schedule post-loopEnd part
 },
 
 /* Stop using volume/panning envelope (no release phase). */
 function cutEnvelope(when, which) {
   var envelopeNode = this[which + 'EnvelopeNode'];
-  if (envelopeNode !== undefined) { envelopeNode.cancelScheduledValues(when); }
+  if (envelopeNode !== undefined) {
+    envelopeNode[(which == 'volume') ? 'gain' : 'pan'].
+      cancelScheduledValues(when);
+  }
 },
 
 /* Set up nodes and trigger vibrato. */
@@ -1075,6 +1121,9 @@ PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
       this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
       this.nextPbr = newPbr;
       break;
+    case 0x8: // set panning
+      this.setPanning(effectParam);
+      break;
     case 0xb: // jump to song position
       xm.nextSongPosition = effectParam;
       break;
@@ -1084,9 +1133,6 @@ PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
     case 0xd: // jump to row in next pattern
       xm.nextPatternStartRow = effectParam;
       xm.nextSongPosition = xm.currentSongPosition + 1;
-      break;
-    case 0xf: // set panning
-      this.setPanning(effectParam);
       break;
     default:
       /* TODO apply other channel effects */
