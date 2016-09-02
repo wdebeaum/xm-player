@@ -915,11 +915,12 @@ function setVibratoTremolo(when, which, key, val) {
 function triggerEnvelope(when, which) {
   var envelope = this.instrument[which + 'Envelope'];
   var envelopeNode = this[which + 'EnvelopeNode'];
+  var param = (which == 'volume') ? 'gain' : 'pan';
   for (var i = 0; i < envelope.length; i++) {
     var targetTime =
       this.startTime + envelope[i][0] * 2.5 / this.xm.currentBPM;
     if (targetTime >= actx.currentTime) {
-      envelopeNode.gain.linearRampToValueAtTime(
+      envelopeNode[param].linearRampToValueAtTime(
 	envelope[i][1] / 64,
 	targetTime
       );
