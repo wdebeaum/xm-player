@@ -618,6 +618,7 @@ function Channel(xm) {
 function reset() {
   // XM stuff
   this.notePhase = 'off'; // 'sustain', 'release'
+  this.lastTriggerTime = 0;
   this.noteNum = 0;
   this.instrument = undefined;
   this.sample = undefined;
@@ -663,6 +664,7 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     this.cutNote(when);
   }
   this.notePhase = 'sustain';
+  this.lastTriggerTime = when;
   this.noteNum = noteNum;
   // get XM resources/settings
   if (instrumentNum > 0) {
@@ -709,7 +711,6 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   this.setVolume(when, this.sample.volume);
   this.setPanning(when, this.sample.panning);
   // trigger everything
-  this.startTime = when;
   if ('volumeEnvelope' in this.instrument) { this.triggerEnvelope(when, 'volume'); }
   if ('panningEnvelope' in this.instrument){ this.triggerEnvelope(when, 'panning'); }
   if (this.vibrato.on) { this.triggerVibrato(when); }
@@ -931,13 +932,15 @@ function setVibratoTremolo(when, which, key, val) {
 },
 
 /* Begin volume/panning envelope (depending on "which"). */
-function triggerEnvelope(when, which) {
+function triggerEnvelope(when, which, firstPoint) {
+  if (firstPoint === undefined) { firstPoint = 0; }
   var envelope = this.instrument[which + 'Envelope'];
   var envelopeNode = this[which + 'EnvelopeNode'];
   var param = (which == 'volume') ? 'gain' : 'pan';
-  for (var i = 0; i < envelope.length; i++) {
-    var targetTime =
-      this.startTime + envelope[i][0] * 2.5 / this.xm.currentBPM;
+  for (var i = firstPoint; i < envelope.length; i++) {
+    // FIXME what if BPM changes? should we only be scheduling the envelope a row at a time?
+    var delay = envelope[i][0] * 2.5 / this.xm.currentBPM;
+    var targetTime = when + delay;
     if (targetTime >= actx.currentTime) {
       envelopeNode[param].linearRampToValueAtTime(
         ((which == 'volume') ?
@@ -945,14 +948,27 @@ function triggerEnvelope(when, which) {
 	targetTime
       );
     }
-    // TODO loop/sustain/release
+    if (this.notePhase == 'sustain' &&
+        ((which + 'SustainPoint') in this.instrument) &&
+        i == this.instrument[which + 'SustainPoint']) {
+      break;
+    }
+    if (((which + 'LoopEndPoint') in this.instrument) &&
+        i == this.instrument[which + 'LoopEndPoint']) {
+      this[which + 'CancelLoop'] =
+        afterDelay(when, delay,
+	  this.loopEnvelope.bind(this, targetTime, which));
+    }
   }
 },
 
 /* Sustain volume/panning envelope by looping back to the loop start position.
  */
 function loopEnvelope(when, which) {
-  // TODO
+  var loopStartPoint = this.instrument[which + 'LoopStartPoint'];
+  var timeUntilLoopStart =
+    this.instrument[which + 'Envelope'][loopStartPoint][0];
+  this.triggerEnvelope(when - timeUntilLoopStart, which, loopStartPoint);
 },
 
 /* End the sustain phase of volume/panning envelope and enter the release
@@ -961,18 +977,31 @@ function loopEnvelope(when, which) {
 function releaseEnvelope(when, which) {
   var envelopeNode = this[which + 'EnvelopeNode'];
   if (envelopeNode !== undefined) {
-    envelopeNode[(which == 'volume') ? 'gain' : 'pan']. // FIXME ugh
-      cancelScheduledValues(when);
+    // schedule post-sustain part
+    // TODO check if loop is (uselessly) entirely before sustain?
+    if ((which + 'SustainPoint') in this.instrument) {
+      var sustainPoint = this.instrument[which + 'SustainPoint'];
+      var timeUntilSustain =
+        this.instrument[which + 'Envelope'][sustainPoint][0];
+      var sustainTime = this.lastTriggerTime + timeUntilSustain;
+      if (when > sustainTime) {
+	this.triggerEnvelope(when - timeUntilSustain, which, sustainPoint);
+      } else {
+	this.triggerEnvelope(this.lastTriggerTime, which, sustainPoint);
+      }
+    }
   }
-  // TODO schedule post-loopEnd part
 },
 
 /* Stop using volume/panning envelope (no release phase). */
 function cutEnvelope(when, which) {
   var envelopeNode = this[which + 'EnvelopeNode'];
   if (envelopeNode !== undefined) {
-    envelopeNode[(which == 'volume') ? 'gain' : 'pan'].
+    envelopeNode[(which == 'volume') ? 'gain' : 'pan']. // FIXME ugh
       cancelScheduledValues(when);
+    if ((which + 'CancelLoop') in this) {
+      this[which + 'CancelLoop']();
+    }
   }
 },
 
@@ -1214,7 +1243,8 @@ XMReader.prototype.playRow = function(row) {
 
 var lastLag = 0;
 
-// call fn(startTime+delay) at time startTime+delay, or immediately if that has already passed
+// call fn(startTime+delay) at time startTime+delay, or immediately if that has
+// already passed. Return a function that can be used to cancel calling fn.
 function afterDelay(startTime, delay, fn) {
   var endTime = startTime + delay;
   if (actx.currentTime >= endTime) {
@@ -1223,6 +1253,7 @@ function afterDelay(startTime, delay, fn) {
       lastLag = actx.currentTime;
     }
     fn(endTime);
+    return function() {};
   } else {
     var bs = actx.createBufferSource();
     bs.buffer = actx.createBuffer(1,2,22050);
@@ -1231,6 +1262,7 @@ function afterDelay(startTime, delay, fn) {
     bs.connect(actx.destination); // Chrome needs this
     bs.start();
     bs.stop(endTime);
+    return function() { bs.onended = undefined; bs.stop(); };
   }
 }
 
