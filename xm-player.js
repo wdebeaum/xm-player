@@ -809,6 +809,8 @@ function applyEffect(when, effectType, effectParam) {
   // song; we always set this.nextPbr to the value it *should* be at the start
   // of the next row
   var oldPbr = this.nextPbr;
+  var hi = (effectParam >> 4);
+  var lo = (effectParam & 0xf);
   switch (effectType) {
     case 0x0: // arpeggio
       // theoretically it would be OK if we did this even with effectParam==0,
@@ -842,8 +844,33 @@ function applyEffect(when, effectType, effectParam) {
       if (effectParam > 0) { this.portamentoRate = effectParam; }
       this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
       break;
+    case 0x5: // porta towards note and volume slide
+      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
+      if (hi) { // up
+        this.volumeSlide(when, true, (hi<<2));
+      } else { // down
+        this.volumeSlide(when, false, (lo<<2));
+      }
+      break;
+    case 0x6: // vibrato and volume slide
+      // TODO vibrato
+      if (hi) { // up
+        this.volumeSlide(when, true, (hi<<2));
+      } else { // down
+        this.volumeSlide(when, false, (lo<<2));
+      }
+      break;
+    case 0x7: break; // TODO tremolo
     case 0x8: // set panning
       this.setPanning(when, effectParam);
+      break;
+    case 0x9: break; // TODO sample offset
+    case 0xa: // volume slide
+      if (hi) { // up
+        this.volumeSlide(when, true, (hi<<2));
+      } else { // down
+        this.volumeSlide(when, false, (lo<<2));
+      }
       break;
     case 0xb: // jump to song position
       this.xm.nextSongPosition = effectParam;
@@ -855,6 +882,42 @@ function applyEffect(when, effectType, effectParam) {
       this.xm.nextPatternStartRow = effectParam;
       this.xm.nextSongPosition = xm.currentSongPosition + 1;
       break;
+    case 0xe: // extended effects
+      switch (hi) {
+	case 0x1: // fine porta up
+	case 0x2: // fine porta down
+	  this.portamento(when, (hi == 0x1), lo / this.xm.currentTempo);
+	  break;
+	// 0x3-0x9 TODO
+	case 0xa: // fine volume slide up
+	case 0xb: // fine volume slide down
+	  this.volumeSlide(when, (hi == 0xa), lo / this.xm.currentTempo);
+	  break;
+	case 0xc: // note cut
+	  this.cutNote(when + this.xm.tickDuration() * lo);
+	  break;
+	case 0xd: break; // TODO delay note
+	case 0xe: break; // TODO delay pattern
+	default:
+	  // TODO
+      }
+      break;
+    // 0xf-0x11 see applyGlobalEffect
+    case 0x14: // release note
+      this.releaseNote(when + this.xm.tickDuration() * effectParam);
+      break;
+    case 0x15: break; // TODO volume envelope jump
+    case 0x19: break; // TODO panning slide
+    case 0x1b: break; // TODO retrigger
+    case 0x1d: break; // TODO tremor
+    case 0x21: // extra fine portamento
+      switch (hi) {
+	case 0x1: // fine porta up
+	case 0x2: // fine porta down
+	  this.portamento(when, (hi == 0x1), lo / (0x40 * this.xm.currentTempo));
+	  break;
+       }
+       break;
     default:
       /* TODO apply other channel effects */
   }
@@ -862,7 +925,10 @@ function applyEffect(when, effectType, effectParam) {
 
 /* Process the volume column of a note. */
 function applyVolume(when, volume) {
-  switch (volume >> 4) {
+  var oldPbr = this.nextPbr;
+  var hi = (volume >> 4);
+  var lo = (volume & 0xf);
+  switch (hi) {
     case 0x0:
       // do nothing
       break;
@@ -875,15 +941,27 @@ function applyVolume(when, volume) {
       break;
     case 0x6: // volume slide down
     case 0x7: // volume slide up
+      this.volumeSlide(when, (hi == 0x6), lo);
+      break;
     case 0x8: // fine volume slide down
     case 0x9: // fine volume slide up
+      this.volumeSlide(when, (hi == 0x6), lo / this.xm.currentTempo);
+      break;
     case 0xa: // set vibrato speed
+      // TODO
+      break;
     case 0xb: // perform vibrato and set depth
+      // TODO
+      break;
     case 0xc: // set panning
+      this.setPanning(when, (lo << 4));
+      break
     case 0xd: // panning slide left
     case 0xe: // panning slide right
+      // TODO
+      break;
     case 0xf: // portamento towards note
-      if (effectParam > 0) { this.portamentoRate = (effectParam << 4); }
+      if (lo > 0) { this.portamentoRate = (lo << 4); }
       this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
       break;
   }
@@ -937,6 +1015,26 @@ function setVolume(when, volume) {
 	this.instrument.volumeFadeout
       this.volumeNode.gain.linearRampToValueAtTime(0, fadeoutEndTime);
     }
+  }
+},
+
+function volumeSlide(when, up, rate) {
+  // FIXME how does this interact with instrument volume fadeout?
+  var duration = this.xm.rowDuration();
+  var oldVolume = this.volume;
+  var newVolume = oldVolume + (up ? -1 : 1) * rate * this.xm.currentTempo;
+  // clamp 0-0x40
+  if (newVolume < 0) {
+    newVolume = 0;
+  } else if (newVolume > 0x40) {
+    newVolume = 0x40;
+  }
+  this.volume = newVolume; // for next row
+  if (this.notePhase != 'off') {
+    // FIXME should I make sure it's exactly oldVolume at "when", in case it's
+    // not now?
+    this.volumeNode.gain.linearRampToValueAtTime(
+	newVolume / 0x40, when + duration);
   }
 },
 
