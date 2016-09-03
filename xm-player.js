@@ -1,5 +1,3 @@
-var useNewStuff = true;
-
 if (!String.prototype.encodeHTML) {
   String.prototype.encodeHTML = function () {
     return this.replace(/&/g, '&amp;')
@@ -98,7 +96,7 @@ BinaryFileReader.prototype.readZeroPaddedString = function(length) {
 
 function XMReader(file) {
   this.masterVolume = actx.createGain();
-  this.masterVolume.gain.value = 0.5;
+  this.masterVolume.gain.value = 0.2;
   this.masterVolume.connect(actx.destination);
   this.binaryReader = new BinaryFileReader(file);
   this.channels = [];
@@ -157,10 +155,8 @@ XMReader.prototype.readSongHeader = function() {
   this.songLength = r.readUint16();
   this.restartPosition = r.readUint16();
   this.numberOfChannels = r.readUint16();
-  if (useNewStuff) {
-    for (var ci = 0; ci < this.numberOfChannels; ci++) {
-      this.channels[ci] = new Channel(this);
-    }
+  for (var ci = 0; ci < this.numberOfChannels; ci++) {
+    this.channels[ci] = new Channel(this);
   }
   this.numberOfPatterns = r.readUint16();
   this.numberOfInstruments = r.readUint16();
@@ -1077,197 +1073,8 @@ function sampleDataToBufferSource(data, bytesPerSample) {
   return bs;
 }
 
-function PlayingNote(note, xm, channel) {
-  var noteNum = note[0];
-  var instrumentNum = note[1];
-  var volume = note[2];
-  var effectType = note[3];
-  var effectParam = note[4];
-  if (effectType == 0xf) { // set tempo/BPM
-    if (effectParam < 0x20) { // set tempo
-      xm.currentTempo = effectParam;
-    } else { // set BPM
-      xm.currentBPM = effectParam; // not - 0x20?
-    }
-  } // TODO other global effects?
-  if (noteNum == 0) {
-    if (channel !== undefined &&
-        xm.channels[channel] !== undefined) {
-      var that = xm.channels[channel];
-      if (volume != 0) {
-	that.setVolume(volume);
-      }
-      that.applyEffect(xm, effectType, effectParam);
-    }
-    return;
-  }
-  if (channel !== undefined) {
-    // stop previous note on this channel
-    if (xm.channels[channel] !== undefined) {
-      xm.channels[channel].stop();
-      xm.channels[channel] = undefined;
-    }
-    // get/set default settings for channel
-    if (xm.channelSettings[channel] === undefined) {
-      xm.channelSettings[channel] = note.slice(0); // clone array
-    } else {
-      if (instrumentNum == 0) {
-	instrumentNum = xm.channelSettings[channel][1];
-      } else {
-	xm.channelSettings[channel][1] = instrumentNum;
-      }
-      // TODO other settings?
-    }
-  }
-  if (noteNum >= 97) { return; } // not a note
-  this.inst = xm.instruments[instrumentNum-1];
-  var sampleNum = this.inst.sampleNumberForAllNotes[noteNum];
-  var samp = this.inst.samples[sampleNum];
-  this.volumeNode = actx.createGain();
-  this.setVolume(volume, samp.volume);
-  this.volumeNode.connect(xm.masterVolume);
-  this.panningNode = actx.createStereoPanner();
-  this.setPanning(samp.panning);
-  this.panningNode.connect(this.volumeNode);
-  this.bs = sampleDataToBufferSource(samp.data, samp.bytesPerSample);
-  var pbr = computePlaybackRate(noteNum, samp.relativeNoteNumber, samp.finetune);
-  this.nextPbr = pbr;
-  this.bs.playbackRate.value = pbr;
-  this.applyEffect(xm, effectType, effectParam);
-  if (samp.loopType) {
-    // TODO ping-pong
-    this.bs.loop = true;
-    this.bs.loopStart = samp.loopStart / samp.bytesPerSample / 44100;
-    this.bs.loopEnd = (samp.loopStart + samp.loopLength) / samp.bytesPerSample / 44100;
-  }
-  if ('volumeEnvelope' in this.inst) {
-    this.startTime = actx.currentTime;
-    this.envelopeNode = actx.createGain();
-    this.setEnvelope();
-    this.envelopeNode.connect(this.panningNode);
-    this.bs.connect(this.envelopeNode);
-  } else {
-    this.bs.connect(this.panningNode);
-  }
-  if (channel !== undefined) {
-    xm.channels[channel] = this;
-  }
-  if (effectType == 0x9) { // sample offset
-    var offsetInBytes = effectParam * 0x100;
-    var offsetInSamples = offsetInBytes / samp.bytesPerSample;
-    var offsetInSeconds = offsetInSamples / 44100;
-    this.bs.start(0, offsetInSeconds);
-  } else {
-    this.bs.start();
-  }
-  // stop looping when we reach the end of an envelope that ends at 0 volume
-  if (this.bs.loop && 'volumeEnvelope' in this.inst &&
-      this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][1] == 0) {
-    this.stop(actx.currentTime + this.inst.volumeEnvelope[this.inst.volumeEnvelope.length-1][0] * 2.5 / xm.currentBPM);
-  }
-}
-
-PlayingNote.prototype.applyEffect = function(xm, effectType, effectParam) {
-  // NOTE: this.bs.playbackRate.value might be wrong in the context of the
-  // song; we always set this.nextPbr to the value it *should* be at the start
-  // of the next row
-  var oldPbr = this.nextPbr;
-  switch (effectType) {
-    case 0x0: // arpeggio
-      // theoretically it would be OK if we did this even with effectParam==0,
-      // but Firefox doesn't like it for some reason (interferes with porta),
-      // and anyway it's less efficient
-      if (effectParam != 0) {
-	// three notes: the current note, the high nibble of the parameter
-	// semitones up from that, and the low nibble up from the current note
-	var secondNote = (effectParam >> 4);
-	var thirdNote = (effectParam & 0xf);
-	var pbrs = [
-	  oldPbr,
-	  oldPbr * Math.pow(2, secondNote / 12),
-	  oldPbr * Math.pow(2, thirdNote / 12)
-	];
-	// rotate through pbrs for each tick in this row
-	for (var i = 0, t = actx.currentTime;
-	     i < xm.currentTempo; // ticks per row
-	     i++, t += xm.tickDuration()) {
-	  this.bs.playbackRate.setValueAtTime(pbrs[i%3], t);
-	}
-	// set back to oldPbr after row finishes
-	this.bs.playbackRate.setValueAtTime(oldPbr, t);
-      }
-      break;
-    case 0x1: // porta up effectParam 16ths of a semitone per tick
-    case 0x2: // porta down
-      var pbrFactor = xm.portaToPlaybackRateFactor(effectParam);
-      var newPbr =
-        ((effectType == 0x1) ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
-      var rowEndTime = actx.currentTime + xm.rowDuration();
-      this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
-      this.nextPbr = newPbr;
-      break;
-    case 0x8: // set panning
-      this.setPanning(effectParam);
-      break;
-    case 0xb: // jump to song position
-      xm.nextSongPosition = effectParam;
-      break;
-    case 0xc: // set volume
-      this.setVolume(effectParam);
-      break;
-    case 0xd: // jump to row in next pattern
-      xm.nextPatternStartRow = effectParam;
-      xm.nextSongPosition = xm.currentSongPosition + 1;
-      break;
-    default:
-      /* TODO apply other channel effects */
-  }
-}
-
-PlayingNote.prototype.setEnvelope = function() {
-  for (var i = 0; i < this.inst.volumeEnvelope.length; i++) {
-    var targetTime =
-      this.startTime + this.inst.volumeEnvelope[i][0] * 2.5 / xm.currentBPM;
-    if (targetTime >= actx.currentTime) {
-      this.envelopeNode.gain.linearRampToValueAtTime(
-	this.inst.volumeEnvelope[i][1] / 64,
-	targetTime
-      );
-    }
-  }
-}
-
-PlayingNote.prototype.setVolume = function(volume, defaultVolume) {
-  var volumeFraction = 1;
-  if (defaultVolume !== undefined) {
-    volumeFraction = defaultVolume / 0x40;
-  }
-  if (volume >= 0x10 && volume <= 0x50) {
-    volumeFraction = (volume - 0x10) / 0x40;
-  } // TODO volume effects (or at least don't reset to 1 for volume > 0x50)
-  this.volumeNode.gain.value = volumeFraction;
-}
-
-PlayingNote.prototype.setPanning = function(panning) {
-  this.panningNode.pan.value = (panning - 128) / 128;
-}
-
-PlayingNote.prototype.stop = function(when) {
-  if (when === undefined || when < actx.currentTime) {
-    when = actx.currentTime;
-  }
-  // avoid clicks at note ends
-  // FIXME magic constants not specified anywhere in the XM spec
-  this.volumeNode.gain.setTargetAtTime(0, when, 0.1);
-  this.bs.stop(when+0.2);
-}
-
 XMReader.prototype.playNote = function(note, channel) {
-  if (useNewStuff) {
-    this.channels[channel].applyCommand(actx.currentTime /*FIXME*/, note);
-  } else {
-    new PlayingNote(note, this, channel);
-  }
+  this.channels[channel].applyCommand(actx.currentTime /*FIXME*/, note);
 }
 
 XMReader.prototype.playRow = function(row) {
@@ -1360,14 +1167,7 @@ XMReader.prototype.stopAllChannels = function() {
   this.nextSongPosition = undefined;
   this.nextPatternStartRow = undefined;
   for (var i = 0; i < this.channels.length; i++) {
-    if (useNewStuff) {
-      this.channels[i].cutNote();
-    } else {
-      if (this.channels[i] !== undefined) {
-	this.channels[i].stop();
-	this.channels[i] = undefined;
-      }
-    }
+    this.channels[i].cutNote();
   }
 }
 
