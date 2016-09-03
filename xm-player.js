@@ -1,4 +1,4 @@
-var useNewStuff = false;
+var useNewStuff = true;
 
 if (!String.prototype.encodeHTML) {
   String.prototype.encodeHTML = function () {
@@ -612,11 +612,11 @@ function reset() {
   // XM stuff
   this.notePhase = 'off'; // 'sustain', 'release'
   this.noteNum = 0;
-  this.targetNoteNum = 0;
   this.instrument = undefined;
   this.sample = undefined;
   this.volume = 0x40; // silent 0x00 - 0x40 full
   this.panning = 0x80; // left 0x00 - 0xff right
+  this.portamentoRate = 0; // 16ths of a semitone per tick
   this.vibrato = {
     on: false,
     type: 0, // see vibratoTypes
@@ -633,6 +633,7 @@ function reset() {
   };
   // Web Audio API stuff
   this.nextPbr = 1.0; // playback rate at start of next row
+  this.targetPbr = 1.0; // target of tone porta, so we stop when we get there
   // TODO stop/disconnect these if they exist already
   this.vibratoNode = undefined; // oscillator
   this.vibratoAmplitudeNode = undefined; // gain
@@ -655,12 +656,15 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     this.cutNote(when);
   }
   this.notePhase = 'sustain';
-  this.noteNum = this.targetNoteNum = noteNum;
+  this.noteNum = noteNum;
   // get XM resources/settings
-  this.instrument = xm.instruments[instrumentNum-1];
+  if (instrumentNum > 0) {
+    this.instrument = xm.instruments[instrumentNum-1];
+  }
   this.sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
   this.nextPbr =
     computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
+  this.targetPbr = this.nextPbr;
   this.vibrato.on = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
   this.vibrato.type = this.instrument.vibratoType;
   this.vibrato.sweep = this.instrument.vibratoSweep;
@@ -753,11 +757,10 @@ function applyCommand(when, note) {
   if (effectType == 0x03 || effectType == 0x05 ||
       (volume & 0xf0) == 0xf0) {
     // portamento to note, don't trigger a new note
-    if (noteNum > 0 && noteNum < 96) {
-      this.targetNoteNum = noteNum;
-      if (this.notePhase != 'off') {
-	this.setVolume(when, this.sample.volume);
-      }
+    if (noteNum > 0 && noteNum < 96 && this.notePhase != 'off') {
+      this.targetPbr =
+	computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
+      this.setVolume(when, this.sample.volume);
     }
   } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
     // delay pattern
@@ -785,13 +788,22 @@ function applyGlobalEffect(when, effectType, effectParam) {
   }
 },
 
-function portamento(when, up, amount) {
+function portamento(when, up, rate, stopAtPbr) {
   var oldPbr = this.nextPbr;
-  var pbrFactor = this.xm.portaToPlaybackRateFactor(amount);
+  var pbrFactor = this.xm.portaToPlaybackRateFactor(rate);
   var newPbr = (up ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
-  console.log({ up: up, targetNoteNum: this.targetNoteNum, noteNum: this.noteNum, pbrFactor: pbrFactor, oldPbr: oldPbr, newPbr: newPbr });
-  var rowEndTime = when + this.xm.rowDuration();
-  this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+  var durationFactor = 1;
+  if (stopAtPbr !== undefined &&
+      (up ? (newPbr > stopAtPbr) : (newPbr < stopAtPbr))) {
+    var currentPbrFactor = newPbr / oldPbr; // includes effect of up
+    var targetPbrFactor = stopAtPbr / oldPbr;
+    var durationFactor = Math.log(targetPbrFactor) / Math.log(currentPbrFactor);
+    newPbr = stopAtPbr;
+  }
+  var rowEndTime = when + (this.xm.rowDuration() * durationFactor);
+  if (this.bs !== undefined) {
+    this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+  }
   this.nextPbr = newPbr;
 },
 
@@ -831,9 +843,8 @@ function applyEffect(when, effectType, effectParam) {
       this.portamento(when, (effectType == 0x1), effectParam);
       break;
     case 0x3: // porta towards note
-      // FIXME /4 isn't what the docs say, but it's going too far...
-      // need to make this stop when it reaches the target... maybe targetPbr instead of targetNoteNum
-      this.portamento(when, (this.targetNoteNum > this.noteNum), effectParam / 4);
+      if (effectParam > 0) { this.portamentoRate = effectParam; }
+      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
       break;
     case 0x8: // set panning
       this.setPanning(when, effectParam);
