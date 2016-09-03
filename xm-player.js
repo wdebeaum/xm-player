@@ -803,25 +803,6 @@ function applyGlobalEffect(when, effectType, effectParam) {
   }
 },
 
-function portamento(when, up, rate, stopAtPbr) {
-  var oldPbr = this.nextPbr;
-  var pbrFactor = this.xm.portaToPlaybackRateFactor(rate);
-  var newPbr = (up ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
-  var durationFactor = 1;
-  if (stopAtPbr !== undefined &&
-      (up ? (newPbr > stopAtPbr) : (newPbr < stopAtPbr))) {
-    var currentPbrFactor = newPbr / oldPbr; // includes effect of up
-    var targetPbrFactor = stopAtPbr / oldPbr;
-    var durationFactor = Math.log(targetPbrFactor) / Math.log(currentPbrFactor);
-    newPbr = stopAtPbr;
-  }
-  var rowEndTime = when + (this.xm.rowDuration() * durationFactor);
-  if (this.bs !== undefined) {
-    this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
-  }
-  this.nextPbr = newPbr;
-},
-
 /* Process the effect/param portion of a note. */
 function applyEffect(when, effectType, effectParam) {
   // NOTE: this.bs.playbackRate.value might be wrong in the context of the
@@ -901,10 +882,30 @@ function applyVolume(when, volume) {
     case 0xc: // set panning
     case 0xd: // panning slide left
     case 0xe: // panning slide right
-    case 0xf: // portamento to note
-      // TODO
+    case 0xf: // portamento towards note
+      if (effectParam > 0) { this.portamentoRate = (effectParam << 4); }
+      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
       break;
   }
+},
+
+function portamento(when, up, rate, stopAtPbr) {
+  var oldPbr = this.nextPbr;
+  var pbrFactor = this.xm.portaToPlaybackRateFactor(rate);
+  var newPbr = (up ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
+  var durationFactor = 1;
+  if (stopAtPbr !== undefined &&
+      (up ? (newPbr > stopAtPbr) : (newPbr < stopAtPbr))) {
+    var currentPbrFactor = newPbr / oldPbr; // includes effect of up
+    var targetPbrFactor = stopAtPbr / oldPbr;
+    var durationFactor = Math.log(targetPbrFactor) / Math.log(currentPbrFactor);
+    newPbr = stopAtPbr;
+  }
+  var rowEndTime = when + (this.xm.rowDuration() * durationFactor);
+  if (this.bs !== undefined) {
+    this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
+  }
+  this.nextPbr = newPbr;
 },
 
 function getFadeoutVolume(when, unfadedVolume) {
