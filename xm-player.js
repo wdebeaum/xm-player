@@ -477,14 +477,14 @@ XMReader.prototype.drawVolumePanning = function(ret, volumeOrPanning) {
 	// capitalize
 	volumeOrPanning.slice(0,1).toUpperCase() + volumeOrPanning.slice(1));
     var svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('viewBox', '0 0 64 64');
-    svg.setAttribute('width',128);
+    svg.setAttribute('viewBox', '0 0 192 64');
+    svg.setAttribute('width',384);
     svg.setAttribute('height',128);
     instrumentsDiv.appendChild(svg);
     var bg = document.createElementNS(svgNS, 'rect');
     bg.setAttribute('x',0);
     bg.setAttribute('y',0);
-    bg.setAttribute('width',64);
+    bg.setAttribute('width',192);
     bg.setAttribute('height',64);
     svg.appendChild(bg);
     var p = document.createElementNS(svgNS, 'path');
@@ -940,7 +940,8 @@ function triggerEnvelope(when, which) {
       this.startTime + envelope[i][0] * 2.5 / this.xm.currentBPM;
     if (targetTime >= actx.currentTime) {
       envelopeNode[param].linearRampToValueAtTime(
-	envelope[i][1] / 64,
+        ((which == 'volume') ?
+	  (envelope[i][1] / 64) : ((envelope[i][1] - 32) / 32)),
 	targetTime
       );
     }

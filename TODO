@@ -35,7 +35,7 @@
  # note-on-ness states are: sustained, released but still playing, not playing
  ? Channels in a playing state always have the same AudioNode graph, just different parameters (in non-playing state this can be freed)
  ? process per-tick instead of per-row (or can this really be accomplished by scheduling parameter changes within each row? I think probably not because some per-tick effects might interact with each other)
-- panning envelopes
+# panning envelopes
 - envelope sustain/loop
 ? instrument vibrato
  # find a reference for how this works; the docs I have don't say
