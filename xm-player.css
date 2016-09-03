@@ -1,6 +1,6 @@
 #patterns table {
   font-family: monospace;
-  font-size: small;
+  font-size: x-small;
   border: 2px solid rgb(63,63,127);
   border-collapse: collapse;
   background-color: black;
@@ -22,6 +22,7 @@ td.note {
 
 /* colors from MilkyTracker */
 tr.row-0 td.row-num { color: yellow; }
+tr.row-4 td.row-num { color: yellow; }
 .col-1 { color: cyan; }
 .col-2 { color: lime; }
 .col-3 { color: magenta; }
@@ -36,6 +37,10 @@ tr.row-0 td.row-num { color: yellow; }
   background-color: rgba(255,0,127,0.4);
   color: rgb(127,127,255);
 }
+
+/* beat row background highlights (not from MilkyTracker) */
+tr.row-0 { background: rgb(31,31,63); }
+tr.row-4 { background: rgb(15,15,31); }
 
 rect {
   fill: white;

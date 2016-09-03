@@ -331,7 +331,7 @@ XMReader.prototype.drawPattern = function(pi) {
   table += '</tr>';
   for (var ri = 0; ri < this.patterns[pi].length; ri++) {
     var row = this.patterns[pi][ri];
-    table += '<tr id="pattern-' + pi + '-row-' + ri + '" class="row-' + (ri % 4) + '"><td class="row-num">' + ri.toString(16) + '</td>';
+    table += '<tr id="pattern-' + pi + '-row-' + ri + '" class="row-' + (ri % 8) + '"><td class="row-num">' + ri.toString(16) + '</td>';
     for (var ci = 0; ci < row.length; ci++) {
       var note = row[ci];
       // get tooltips
