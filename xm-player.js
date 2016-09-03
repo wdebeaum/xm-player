@@ -98,7 +98,7 @@ BinaryFileReader.prototype.readZeroPaddedString = function(length) {
 
 function XMReader(file) {
   this.masterVolume = actx.createGain();
-  this.masterVolume.gain.value = 0.1;
+  this.masterVolume.gain.value = 0.5;
   this.masterVolume.connect(actx.destination);
   this.binaryReader = new BinaryFileReader(file);
   this.channels = [];
@@ -545,11 +545,18 @@ XMReader.prototype.drawSampleHeader = function(s) {
 XMReader.prototype.readSampleData = function(s) {
   var deltas = this.binaryReader.readIntegers(s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
   s.data = [];
+  var maxint = (1 << (8*s.bytesPerSample));
+  var maxsint = (maxint>>1)-1;
+  var minsint = -(maxint>>1);
   var old = 0;
   for (var i = 0; i < deltas.length; i++) {
     var neww = old + deltas[i];
     // discard overflow
-    neww %= (1 << (8*s.bytesPerSample));
+    if (neww > maxsint) {
+      neww -= maxint;
+    } else if (neww < minsint) {
+      neww += maxint;
+    }
     s.data.push(neww);
     old = neww;
   }
