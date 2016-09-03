@@ -445,7 +445,9 @@ XMReader.prototype.drawInstrument = function(ii) {
   if (ret.vibratoType || ret.vibratoSweep || ret.vibratoDepth || ret.vibratoRate) {
     appendLine(instrumentsDiv, 'Vibrato: ' + vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
   }
-  appendLine(instrumentsDiv, 'Volume fadeout: ' + ret.volumeFadeout);
+  if (ret.volumeFadeout > 0) {
+    appendLine(instrumentsDiv, 'Volume fadeout: reduce volume by ' + ret.volumeFadeout + ' / 65536 of what it would be otherwise, per tick after note release');
+  }
   for (var si = 0; si < ret.numberOfSamples; si++) {
     appendHeading(instrumentsDiv, 4, 'Sample ' + si);
     this.drawSampleHeader(ret.samples[si]);
@@ -726,10 +728,18 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
 
 /* End the sustain phase of playing the note and enter the release phase. */
 function releaseNote(when) {
+  if (this.notePhase != 'sustain') { return; }
+  if (when === undefined) { when = actx.currentTime; }
   this.notePhase = 'release';
-  this.releaseEnvelope(when, 'volume');
-  this.releaseEnvelope(when, 'panning');
-  this.cutNote(when); // TODO
+  // FIXME is this actually the correct condition? what if the sample doesn't loop?
+  if (this.instrument.volumeFadeout > 0 ||
+      'volumeEnvelope' in this.instrument) {
+    this.setVolume(when, this.volume); // start fadeout if necessary
+    this.releaseEnvelope(when, 'volume');
+    this.releaseEnvelope(when, 'panning');
+  } else { // no fadeout, no volume envelope, just cut the note so it doesn't go on forever
+    this.cutNote(when);
+  }
 },
 
 /* Stop playing the note (no release phase). */
@@ -740,6 +750,7 @@ function cutNote(when) {
     when = actx.currentTime;
   }
   // avoid clicks at note ends
+  this.volumeNode.gain.cancelScheduledValues(when);
   // FIXME magic constants not specified anywhere in the XM spec
   this.volumeNode.gain.setTargetAtTime(0, when, 0.1);
   this.bs.stop(when+0.2);
@@ -765,7 +776,7 @@ function applyCommand(when, note) {
   if (effectType == 0x03 || effectType == 0x05 ||
       (volume & 0xf0) == 0xf0) {
     // portamento to note, don't trigger a new note
-    if (noteNum > 0 && noteNum < 96 && this.notePhase != 'off') {
+    if (noteNum > 0 && noteNum < 97 && this.notePhase != 'off') {
       this.targetPbr =
 	computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
       this.setVolume(when, this.sample.volume);
@@ -773,9 +784,9 @@ function applyCommand(when, note) {
   } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
     // delay pattern
     // TODO
-  } else if (noteNum == 96) {
+  } else if (noteNum == 97) {
     this.releaseNote(when + triggerDelay);
-  } else if (noteNum > 0 && noteNum < 96) {
+  } else if (noteNum > 0 && noteNum < 97) {
     this.triggerNote(when + triggerDelay, noteNum, instrumentNum, sampleOffset);
   }
   this.applyVolume(when, volume);
@@ -900,14 +911,34 @@ function applyVolume(when, volume) {
   }
 },
 
+function getFadeoutVolume(when, unfadedVolume) {
+  if (this.notePhase != 'release' || this.instrument.volumeFadeout == 0) {
+    return unfadedVolume;
+  } else {
+    // FIXME what if BPM changes?
+    return unfadedVolume *
+      (1 - (this.xm.tickDuration() * this.instrument.volumeFadeout / 0x10000));
+  }
+},
+
 /* Set the actual note volume (not the volume column, not the envelope). */
 function setVolume(when, volume) {
+  if (when === undefined) { when = actx.currentTime; }
   this.volume = volume;
   if (this.notePhase != 'off') {
+    var volumeFraction = this.getFadeoutVolume(when, volume / 0x40);
     if (when > actx.currentTime) {
-      this.volumeNode.gain.setValueAtTime(volume / 0x40, when);
+      this.volumeNode.gain.setValueAtTime(volumeFraction, when);
     } else {
-      this.volumeNode.gain.value = volume / 0x40;
+      this.volumeNode.gain.value = volumeFraction;
+    }
+    if (this.notePhase == 'release' && this.instrument.volumeFadeout != 0) {
+      // FIXME what if BPM changes?
+      var fadeoutEndTime = // time when volume reaches 0
+        when +
+        volumeFraction * this.xm.tickDuration() * 0x10000 /
+	this.instrument.volumeFadeout
+      this.volumeNode.gain.linearRampToValueAtTime(0, fadeoutEndTime);
     }
   }
 },
@@ -933,13 +964,14 @@ function setVibratoTremolo(when, which, key, val) {
 
 /* Begin volume/panning envelope (depending on "which"). */
 function triggerEnvelope(when, which, firstPoint) {
+  if (when < 0) { throw "WTF"; }
   if (firstPoint === undefined) { firstPoint = 0; }
   var envelope = this.instrument[which + 'Envelope'];
   var envelopeNode = this[which + 'EnvelopeNode'];
   var param = (which == 'volume') ? 'gain' : 'pan';
   for (var i = firstPoint; i < envelope.length; i++) {
     // FIXME what if BPM changes? should we only be scheduling the envelope a row at a time?
-    var delay = envelope[i][0] * 2.5 / this.xm.currentBPM;
+    var delay = envelope[i][0] * this.xm.tickDuration();
     var targetTime = when + delay;
     if (targetTime >= actx.currentTime) {
       envelopeNode[param].linearRampToValueAtTime(
@@ -965,9 +997,11 @@ function triggerEnvelope(when, which, firstPoint) {
 /* Sustain volume/panning envelope by looping back to the loop start position.
  */
 function loopEnvelope(when, which) {
+  if (when < 0) { throw "WTF"; }
   var loopStartPoint = this.instrument[which + 'LoopStartPoint'];
   var timeUntilLoopStart =
-    this.instrument[which + 'Envelope'][loopStartPoint][0];
+    this.instrument[which + 'Envelope'][loopStartPoint][0] *
+    this.xm.tickDuration(); // FIXME what if BPM changes?
   this.triggerEnvelope(when - timeUntilLoopStart, which, loopStartPoint);
 },
 
@@ -982,7 +1016,8 @@ function releaseEnvelope(when, which) {
     if ((which + 'SustainPoint') in this.instrument) {
       var sustainPoint = this.instrument[which + 'SustainPoint'];
       var timeUntilSustain =
-        this.instrument[which + 'Envelope'][sustainPoint][0];
+        this.instrument[which + 'Envelope'][sustainPoint][0] *
+	this.xm.tickDuration(); // FIXME what if BPM changes?
       var sustainTime = this.lastTriggerTime + timeUntilSustain;
       if (when > sustainTime) {
 	this.triggerEnvelope(when - timeUntilSustain, which, sustainPoint);
