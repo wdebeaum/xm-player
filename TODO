@@ -45,3 +45,5 @@
   > the gist seems to be that "depth" means amplitude and "rate" means frequency (as you'd expect), and "sweep" means the duration of the ramp up to full "depth" (wat?)
   > units, units, my kingdom for some units...
 ? all the remaining effects (prioritized by what I see used most in others' music)
+= bugs
+ - something wrong with porta in HYPERMMX.XM pattern 41, 4th and 5th channels
