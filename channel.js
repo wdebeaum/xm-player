@@ -1,3 +1,10 @@
+// webkit prefix stuff required for Safari
+if (AudioContext === undefined && webkitAudioContext !== undefined) {
+  var AudioContext = webkitAudioContext;
+}
+// Safari lacks this
+var haveStereoPanner = ('createStereoPanner' in AudioContext.prototype);
+
 function sampleDataToBufferSource(data, bytesPerSample) {
   var bs = actx.createBufferSource();
   var buffer = actx.createBuffer(1, (data.length || 1), 44100);
@@ -127,13 +134,15 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     this.volumeEnvelopeNode.connect(downstream);
     downstream = this.volumeEnvelopeNode;
   }
-  this.panningNode = actx.createStereoPanner();
-  this.panningNode.connect(downstream);
-  downstream = this.panningNode;
-  if ('panningEnvelope' in this.instrument) {
-    this.panningEnvelopeNode = actx.createStereoPanner();
-    this.panningEnvelopeNode.connect(downstream);
-    downstream = this.panningEnvelopeNode;
+  if (haveStereoPanner) {
+    this.panningNode = actx.createStereoPanner();
+    this.panningNode.connect(downstream);
+    downstream = this.panningNode;
+    if ('panningEnvelope' in this.instrument) {
+      this.panningEnvelopeNode = actx.createStereoPanner();
+      this.panningEnvelopeNode.connect(downstream);
+      downstream = this.panningEnvelopeNode;
+    }
   }
   this.bs = sampleDataToBufferSource(this.sample.data, this.sample.bytesPerSample);
   if (this.sample.loopType) {
@@ -489,7 +498,7 @@ function volumeSlide(when, up, rate) {
 /* Set the note panning (not the envelope). */
 function setPanning(when, panning) {
   this.panning = panning;
-  if (this.notePhase != 'off') {
+  if (this.notePhase != 'off' && haveStereoPanner) {
     if (when > actx.currentTime) {
       this.panningNode.pan.setValueAtTime((panning - 0x80) / 0x80, when);
     } else {
