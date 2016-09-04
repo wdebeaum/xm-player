@@ -873,7 +873,7 @@ function applyEffect(when, effectType, effectParam) {
     case 0x8: // set panning
       this.setPanning(when, effectParam);
       break;
-    case 0x9: break; // TODO sample offset
+    // case 0x9: break; sample offset see applyCommand
     case 0xa: // volume slide
       if (hi) { // up
         this.volumeSlide(when, true, (hi<<2));
