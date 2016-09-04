@@ -57,16 +57,15 @@ This is a tool for reading and playing music files in the [XM format](https://en
 
 ## Some other ways to play XM files
 
- - Players
-   - [MikMod](http://mikmod.sourceforge.net/): cross-platform, plays many formats
-   - In a web browser:
-     - [jsxm](https://github.com/a1k0n/jsxm/): very similar to mine, but:
-       - sounds more faithful to FT2
-       - displays less information from the file (just the title, the patterns as they play, and the instrument names and waveforms)
-       - uses the Web Audio API merely as a place to stuff PCM samples into, rather than taking full advantage of its relevant features (perhaps that was the right decision, given the results)
-       - requires drag-and-drop to open local files, rather than an "open" dialog window
+ - [MikMod](http://mikmod.sourceforge.net/): cross-platform, plays many formats
+ - In a web browser:
+   - [jsxm](https://github.com/a1k0n/jsxm/): very similar to mine, but:
+     - sounds more faithful to FT2
+     - displays less information from the file (just the title, the patterns as they play, and the instrument names and waveforms)
+     - uses the Web Audio API merely as a place to stuff PCM samples into, rather than taking full advantage of its relevant features (perhaps that was the right decision, given the results)
+     - requires drag-and-drop to open local files, rather than an "open" dialog window
 
-     - [chiptune2.js](https://github.com/deskjet/chiptune2.js): emscripten port of the library behind OpenMPT
+   - [chiptune2.js](https://github.com/deskjet/chiptune2.js): emscripten port of the library behind OpenMPT
 
  - Editors:
    - [FastTracker 2](http://www.pouet.net/prod.php?which=13350): DOS, the original
