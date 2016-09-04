@@ -132,6 +132,13 @@ function noteTooltips(note) {
 	  }})();
 	case 0x1d: // T
 	  return 'tremor: toggle note volume between full (for ' + hi + ' ticks) and zero (for ' + lo + ' ticks)';
+	case 0x20: // W
+	  /* Supported only in BASS? See also:
+	   * https://github.com/azuisleet/gmodmodules/blob/master/gm_bass/bass/bass.txt#L1688
+	   * https://github.com/jllodra/cmod/blob/master/cmod/bassmod.h#L95
+	   * http://wingzone.tripod.com/bassmod/BASSMOD_MusicSetSync.html
+	   */
+	  return 'sync: pass ' + effParam + ' to the synchronization callback';
 	case 0x21: // X
 	  switch (hi) {
 	    case 0x1:
