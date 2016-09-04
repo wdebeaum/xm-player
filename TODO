@@ -51,4 +51,5 @@
 = bugs
  ? something wrong with porta in HYPERMMX.XM pattern 41, 4th and 5th channels
   > might have something to do with Amiga frequency table
- # releasing a note with a looping envelope can cause stack overflow?!
+ - releasing a note with a looping envelope can cause stack overflow?!
+  > thought I fixed this, guess I didn't... gateways{1,2}.xm do it
