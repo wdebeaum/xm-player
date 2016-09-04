@@ -97,10 +97,19 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   this.lastTriggerTime = when;
   this.noteNum = noteNum;
   // get XM resources/settings
-  if (instrumentNum > 0) {
-    this.instrument = xm.instruments[instrumentNum-1];
+  if (instrumentNum > 0 && instrumentNum <= this.xm.instruments.length) {
+    this.instrument = this.xm.instruments[instrumentNum-1];
   }
-  this.sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
+  if (this.instrument === undefined || this.instrument.numberOfSamples == 0) {
+    // oh well, let's not trigger a note after all
+    this.notePhase = 'off';
+    return;
+  }
+  if ('sampleNumberForAllNotes' in this.instrument) {
+    this.sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
+  } else {
+    this.sample = this.instrument.samples[0];
+  }
   this.nextPbr =
     computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
   this.targetPbr = this.nextPbr;
@@ -111,7 +120,7 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   this.vibrato.rate = this.instrument.vibratoRate;
   // set up node graph
   this.volumeNode = actx.createGain();
-  this.volumeNode.connect(xm.masterVolume);
+  this.volumeNode.connect(this.xm.masterVolume);
   var downstream = this.volumeNode;
   if ('volumeEnvelope' in this.instrument) {
     this.volumeEnvelopeNode = actx.createGain();
@@ -316,8 +325,10 @@ function applyEffect(when, effectType, effectParam) {
       this.setVolume(when, effectParam);
       break;
     case 0xd: // jump to row in next pattern
-      this.xm.nextPatternStartRow = effectParam;
-      this.xm.nextSongPosition = xm.currentSongPosition + 1;
+      // bizarrely this is encoded so that in hexadecimal it looks like a
+      // decimal value, which is the real row number (binary-coded decimal)
+      this.xm.nextPatternStartRow = hi * 10 + lo;
+      this.xm.nextSongPosition = this.xm.currentSongPosition + 1;
       break;
     case 0xe: // extended effects
       switch (hi) {
