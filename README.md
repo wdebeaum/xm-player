@@ -49,6 +49,8 @@ This is a tool for reading and playing music files in the [XM format](https://en
    - E9x Retrigger note
    - EDx Note delay
    - EEx Pattern delay
+   - Gxx Set global volume
+   - Hxy Global volume slide
    - Lxx Set volume envelope position
    - Pxy Panning slide
    - Rxy Retrigger + volume slide
