@@ -30,6 +30,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
 
 var actx;
 // HTML elements
+var showPatternsInput;
 var xmUrlInput;
 var songDiv;
 var songTable;
@@ -39,6 +40,7 @@ var instrumentsDiv;
 var rowHighlight;
 function onBodyLoad() {
   actx = new AudioContext();
+  showPatternsInput = document.getElementById('show-patterns');
   xmUrlInput = document.getElementById('xm-url');
   songDiv = document.getElementById('song');
   songTable = document.getElementById('song-header');
@@ -123,8 +125,10 @@ XMReader.prototype.onBinaryLoad = function() {
 
 XMReader.prototype.drawSong = function() {
   this.drawSongHeader();
-  for (var pi = 0; pi < this.numberOfPatterns; pi++) {
-    this.drawPattern(pi);
+  if (showPatternsInput.checked) {
+    for (var pi = 0; pi < this.numberOfPatterns; pi++) {
+      this.drawPattern(pi);
+    }
   }
   for (var ii = 0; ii < this.numberOfInstruments; ii++) {
     this.drawInstrument(ii);
@@ -1233,7 +1237,7 @@ var stopPlease = false;
 XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, loop, startTime) {
   if (stopPlease) {
     // stop showing row highlight
-    rowHighlight.style.display = 'none';
+    if (showPatternsInput.checked) { rowHighlight.style.display = 'none'; }
     if (onEnded !== undefined) {
       onEnded.call();
     }
@@ -1244,7 +1248,9 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
   if (this.nextSongPosition !== undefined) { startRow = pattern.length; }
   if (startRow < pattern.length) {
     // update display
-    highlightAndCenterRow(patternIndex, startRow);
+    if (showPatternsInput.checked) {
+      highlightAndCenterRow(patternIndex, startRow);
+    }
     // play all the notes/commands in the row
     this.playRow(pattern[startRow]);
     // delay one row (in seconds)
@@ -1255,7 +1261,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
     this.playPattern(pattern, patternIndex, 0, onEnded, loop, startTime);
   } else { // after last row
     // stop showing row highlight
-    rowHighlight.style.display = 'none';
+    if (showPatternsInput.checked) { rowHighlight.style.display = 'none'; }
     if (onEnded !== undefined) {
       onEnded.call();
     }
