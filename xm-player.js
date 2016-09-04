@@ -96,7 +96,7 @@ BinaryFileReader.prototype.readZeroPaddedString = function(length) {
   return String.fromCharCode.apply(String, codes);
 };
 
-function XMReader(file) {
+function XM(file) {
   this.masterVolume = actx.createGain();
   this.masterVolume.gain.value = 0.2;
   this.masterVolume.connect(actx.destination);
@@ -108,7 +108,7 @@ function XMReader(file) {
   this.binaryReader.onload = function() { return that.onBinaryLoad(); };
 }
 
-XMReader.prototype.onBinaryLoad = function() {
+XM.prototype.onBinaryLoad = function() {
   this.readSongHeader();
   for (var pi = 0; pi < this.numberOfPatterns; pi++) {
     this.readPattern(pi);
@@ -123,7 +123,7 @@ XMReader.prototype.onBinaryLoad = function() {
   }
 }
 
-XMReader.prototype.drawSong = function() {
+XM.prototype.drawSong = function() {
   this.drawSongHeader();
   if (showPatternsInput.checked) {
     for (var pi = 0; pi < this.numberOfPatterns; pi++) {
@@ -135,7 +135,7 @@ XMReader.prototype.drawSong = function() {
   }
 }
 
-XMReader.prototype.readSongHeader = function() {
+XM.prototype.readSongHeader = function() {
   var r = this.binaryReader;
   var idText = r.readZeroPaddedString(17);
   if (idText != 'Extended Module: ') {
@@ -172,7 +172,7 @@ XMReader.prototype.readSongHeader = function() {
   this.patternOrder = r.readIntegers(256, false, 1, true).slice(0,this.songLength);
 }
 
-XMReader.prototype.drawSongHeader = function() {
+XM.prototype.drawSongHeader = function() {
   songTable.innerHTML +=
     '<tr><td>Module name:</td><td>' +
       this.moduleName.encodeHTML() + '</td></tr>' +
@@ -200,7 +200,7 @@ XMReader.prototype.drawSongHeader = function() {
   }
 }
 
-XMReader.prototype.readPattern = function(pi) {
+XM.prototype.readPattern = function(pi) {
   var r = this.binaryReader;
   var patternHeaderLength = r.readUint32();
   if (patternHeaderLength != 9) { console.log('WARNING: wrong pattern header length; expected 9 but got ' + patternHeaderLength); }
@@ -316,7 +316,7 @@ function formatVolume(val) {
   }
 }
 
-XMReader.prototype.drawPattern = function(pi) {
+XM.prototype.drawPattern = function(pi) {
   appendHeading(patternsDiv, 3, 'Pattern ' + pi);
   appendButton(patternsDiv, '▶',
       this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, false, undefined));
@@ -367,7 +367,7 @@ XMReader.prototype.drawPattern = function(pi) {
   tableElement.innerHTML = table;
 }
 
-XMReader.prototype.readInstrument = function() {
+XM.prototype.readInstrument = function() {
   var r = this.binaryReader;
   var ret = {};
   var instrumentHeaderSize = r.readUint32();
@@ -426,7 +426,7 @@ XMReader.prototype.readInstrument = function() {
 
 var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
 
-XMReader.prototype.drawInstrument = function(ii) {
+XM.prototype.drawInstrument = function(ii) {
   appendHeading(instrumentsDiv, 3, 'Instrument ' + (ii+1).toString(16));
   appendButton(instrumentsDiv, '▶',
       this.playNote.bind(this, [65, ii+1, 0,0,0], 0));
@@ -455,7 +455,7 @@ XMReader.prototype.drawInstrument = function(ii) {
   }
 }
 
-XMReader.prototype.interpretVolumePanning = function(ret, volumeOrPanning, points, numberOfPoints, sustainPoint, loopStartPoint, loopEndPoint, type) {
+XM.prototype.interpretVolumePanning = function(ret, volumeOrPanning, points, numberOfPoints, sustainPoint, loopStartPoint, loopEndPoint, type) {
   if (type & 1) { // On
     var envelope = ret[volumeOrPanning + 'Envelope'] = [];
     for (var i = 0; i < numberOfPoints; i++) {
@@ -473,7 +473,7 @@ XMReader.prototype.interpretVolumePanning = function(ret, volumeOrPanning, point
 
 var svgNS = 'http://www.w3.org/2000/svg';
 
-XMReader.prototype.drawVolumePanning = function(ret, volumeOrPanning) {
+XM.prototype.drawVolumePanning = function(ret, volumeOrPanning) {
   if ((volumeOrPanning + 'Envelope') in ret) {
     appendHeading(instrumentsDiv, 4,
 	// capitalize
@@ -507,7 +507,7 @@ XMReader.prototype.drawVolumePanning = function(ret, volumeOrPanning) {
   }
 }
 
-XMReader.prototype.readSampleHeader = function() {
+XM.prototype.readSampleHeader = function() {
   var r = this.binaryReader;
   var s = {};
   s.lengthInBytes = r.readUint32();
@@ -527,7 +527,7 @@ XMReader.prototype.readSampleHeader = function() {
 
 var loopTypes = ['none', 'forward', 'ping-pong'];
 
-XMReader.prototype.drawSampleHeader = function(s) {
+XM.prototype.drawSampleHeader = function(s) {
   var table = document.createElement('table');
   instrumentsDiv.appendChild(table);
   table.innerHTML =
@@ -544,7 +544,7 @@ XMReader.prototype.drawSampleHeader = function(s) {
     '<tr><td>Length:</td><td>' + s.lengthInBytes + ' bytes (' + s.bytesPerSample + ' byte(s) per sample)</td></tr>';
 }
 
-XMReader.prototype.readSampleData = function(s) {
+XM.prototype.readSampleData = function(s) {
   var deltas = this.binaryReader.readIntegers(s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
   s.data = [];
   var maxint = (1 << (8*s.bytesPerSample));
@@ -564,7 +564,7 @@ XMReader.prototype.readSampleData = function(s) {
   }
 }
 
-XMReader.prototype.drawSampleData = function(s) {
+XM.prototype.drawSampleData = function(s) {
   // draw waveform on a canvas
   var canvas = document.createElement('canvas');
   canvas.setAttribute('height', 256);
@@ -605,7 +605,7 @@ XMReader.prototype.drawSampleData = function(s) {
 // rate by for an entire row (not just one tick) for the given effect parameter
 // value
 // effectParam is in 16ths of a semitone per tick
-XMReader.prototype.portaToPlaybackRateFactor = function(effectParam) {
+XM.prototype.portaToPlaybackRateFactor = function(effectParam) {
   return Math.pow(2, effectParam * this.currentTempo / (16*12));
 }
 
@@ -1260,11 +1260,11 @@ function sampleDataToBufferSource(data, bytesPerSample) {
   return bs;
 }
 
-XMReader.prototype.playNote = function(note, channel) {
+XM.prototype.playNote = function(note, channel) {
   this.channels[channel].applyCommand(actx.currentTime /*FIXME*/, note);
 }
 
-XMReader.prototype.playRow = function(row) {
+XM.prototype.playRow = function(row) {
   for (var i = 0; i < row.length; i++) {
     this.playNote(row[i], i);
   }
@@ -1307,18 +1307,18 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
 }
 
 // return the current duration of one tick in seconds
-XMReader.prototype.tickDuration = function() {
+XM.prototype.tickDuration = function() {
   return 2.5 / this.currentBPM;
 }
 
 // return the current duration of one pattern row in seconds
-XMReader.prototype.rowDuration = function() {
+XM.prototype.rowDuration = function() {
   return this.currentTempo * this.tickDuration();
 }
 
 var stopPlease = false;
 
-XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, loop, startTime) {
+XM.prototype.playPattern = function(pattern, patternIndex, startRow, onEnded, loop, startTime) {
   if (stopPlease) {
     // stop showing row highlight
     if (showPatternsInput.checked) { rowHighlight.style.display = 'none'; }
@@ -1352,7 +1352,7 @@ XMReader.prototype.playPattern = function(pattern, patternIndex, startRow, onEnd
   }
 }
 
-XMReader.prototype.stopAllChannels = function() {
+XM.prototype.stopAllChannels = function() {
   this.nextSongPosition = undefined;
   this.nextPatternStartRow = undefined;
   for (var i = 0; i < this.channels.length; i++) {
@@ -1368,7 +1368,7 @@ window.stopPlaying = function() {
   setTimeout(function() { stopPlease = false; }, 500);
 }
 
-XMReader.prototype.playSong = function(startIndex, onEnded, loop) {
+XM.prototype.playSong = function(startIndex, onEnded, loop) {
   if (stopPlease) {
     if (onEnded !== undefined) {
       onEnded.call();
@@ -1423,7 +1423,7 @@ function clearSong() {
 
 function readFile(file) {
   clearSong();
-  xm = new XMReader(file);
+  xm = new XM(file);
   xm.onload = function() {
     xm.drawSong();
     console.log("successfully loaded file");
