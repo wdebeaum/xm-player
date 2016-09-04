@@ -676,7 +676,7 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   this.nextPbr =
     computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
   this.targetPbr = this.nextPbr;
-  this.vibrato.on = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
+  var vibratoOn = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
   this.vibrato.type = this.instrument.vibratoType;
   this.vibrato.sweep = this.instrument.vibratoSweep;
   this.vibrato.depth = this.instrument.vibratoDepth;
@@ -715,7 +715,7 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   // trigger everything
   if ('volumeEnvelope' in this.instrument) { this.triggerEnvelope(when, 'volume'); }
   if ('panningEnvelope' in this.instrument){ this.triggerEnvelope(when, 'panning'); }
-  if (this.vibrato.on) { this.triggerVibrato(when); }
+  if (vibratoOn) { this.triggerVibrato(when); }
   // trigger sample
   if (offsetInBytes != 0) {
     var offsetInSamples = offsetInBytes / this.sample.bytesPerSample;
@@ -848,6 +848,11 @@ function applyEffect(when, effectType, effectParam) {
       if (effectParam > 0) { this.portamentoRate = effectParam; }
       this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
       break;
+    case 0x4: // vibrato
+      // note: these triggerVibrato automatically if appropriate
+      if (lo > 0) { this.setVibratoTremolo(when, 'vibrato', 'depth', lo); }
+      if (hi > 0) { this.setVibratoTremolo(when, 'vibrato', 'rate', (hi << 2));}
+      break;
     case 0x5: // porta towards note and volume slide
       this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
       if (hi) { // up
@@ -857,7 +862,7 @@ function applyEffect(when, effectType, effectParam) {
       }
       break;
     case 0x6: // vibrato and volume slide
-      // TODO vibrato
+      this.triggerVibrato(when);
       if (hi) { // up
         this.volumeSlide(when, true, (hi<<2));
       } else { // down
@@ -952,10 +957,10 @@ function applyVolume(when, volume) {
       this.volumeSlide(when, (hi == 0x6), lo / this.xm.currentTempo);
       break;
     case 0xa: // set vibrato speed
-      // TODO
+      this.setVibratoTremolo(when, 'vibrato', 'rate', (lo << 2), true);
       break;
     case 0xb: // perform vibrato and set depth
-      // TODO
+      this.setVibratoTremolo(when, 'vibrato', 'depth', lo);
       break;
     case 0xc: // set panning
       this.setPanning(when, (lo << 4));
@@ -1056,9 +1061,49 @@ function setPanning(when, panning) {
 
 /* Set a vibrato or tremolo (depending on "which") parameter (depending on
  * "key") to "val". Automatically set this[which].on based on the new settings.
+ * Keys and vals are in terms of autovibrato, though this is used for dynamic
+ * vibrato; pay attention to units and the options for "type".
  */
-function setVibratoTremolo(when, which, key, val) {
-  // TODO
+function setVibratoTremolo(when, which, key, val, dontTrigger) {
+  this[which][key] = val;
+  if (this[which].on) { // already on
+    if (this[which].depth != 0 && this[which].rate != 0) { // and staying on
+      // adjust AudioParams
+      // TODO factor this out and reuse in trigger{Vibrato|Tremolo}
+      switch (key) {
+	case 'depth':
+	  switch (which) {
+	    case 'vibrato':
+	      // convert 16ths of a semitone to cents
+	      var gain = val * 100 / 16;
+	      if (this.vibrato.type == 4) { // saw down
+		gain = -gain;
+	      }
+	      this.vibratoAmplitudeNode.gain.value = gain;
+	      break;
+	    case 'tremolo':
+	      // TODO
+	      break;
+	  }
+	  break;
+	case 'rate':
+	  // convert 256ths of a cycle per tick to Hz
+	  var freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
+	  this.vibratoNode.frequency.value = freq;
+	  break;
+	case 'type':
+	  // TODO
+	  break;
+      }
+    } else { // new setting turns it off
+      this['cut' + which.slice(0,1).toUpperCase() + which.slice(1)](when);
+    }
+  } else { // currently off
+    if ((!dontTrigger) &&
+        this[which].depth != 0 && this[which].rate != 0) { // but turning on
+      this['trigger' + which.slice(0,1).toUpperCase() + which.slice(1)](when);
+    } // else staying off
+  }
 },
 
 /* Begin volume/panning envelope (depending on "which"). */
@@ -1141,17 +1186,56 @@ function cutEnvelope(when, which) {
 
 /* Set up nodes and trigger vibrato. */
 function triggerVibrato(when) {
-  // TODO
+  // get rid of previous vibrato
+  if (this.vibrato.on) { this.cutVibrato(when); }
+  this.vibrato.on = true;
+  this.vibratoAmplitudeNode = actx.createGain();
+  this.vibratoAmplitudeNode.connect(this.bs.detune);
+  var gain = this.vibrato.depth * 16 / 100; // cents
+  this.vibratoNode = actx.createOscillator();
+  this.vibratoNode.connect(this.vibratoAmplitudeNode);
+  // convert 256ths of a cycle per tick to Hz
+  var freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
+  this.vibratoNode.frequency.value = freq;
+  switch (this.vibrato.type) {
+    case 0:
+      this.vibratoNode.type = "sine";
+      break;
+    case 1:
+      this.vibratoNode.type = "square";
+      break;
+    case 3: // saw down (negative saw up)
+      gain = -gain;
+      // fall through
+    case 2: // saw up
+      this.vibratoNode.type = "sawtooth";
+      break;
+    default:
+      console.log('WARNING: bogus vibrato type ' + this.vibrato.type);
+  }
+  if (this.vibrato.sweep == 0) {
+    this.vibratoAmplitudeNode.gain.value = gain;
+  } else {
+    var sweepEndTime = when + this.vibrato.sweep * this.xm.tickDuration();
+    this.vibratoAmplitudeNode.gain.value = 0;
+    this.vibratoAmplitudeNode.linearRampToValueAtTime(gain, sweepEndTime);
+  }
+  this.vibratoNode.start(when);
 },
 
 /* Stop vibrato and tear down nodes. */
 function cutVibrato(when) {
-  // TODO
+  this.vibrato.on = false;
+  this.vibratoNode.stop(when);
+  this.vibratoAmplitudeNode.disconnect();
+  this.vibratoNode.disconnect();
+  this.vibratoAmplitudeNode = undefined;
+  this.vibratoNode = undefined;
 },
 
 /* Set up nodes and trigger tremolo. */
 function triggerTremolo(when) {
-  // TODO
+  // TODO like vibrato but with volume instead of detune (may need extra volume node?)
 },
 
 /* Stop tremolo and tear down nodes. */
