@@ -54,48 +54,6 @@ function onBodyLoad() {
   }
 }
 
-function BinaryFileReader(file) {
-  this.pos = 0;
-  this.fileReader = new FileReader();
-  var that = this;
-  this.fileReader.onload = function() {
-    that.buffer = that.fileReader.result;
-    that.data = new DataView(that.buffer);
-    that.onload();
-  };
-  //console.log('readAsArrayBuffer');
-  this.fileReader.readAsArrayBuffer(file);
-}
-
-BinaryFileReader.prototype.readIntegers = function(count, signed, bytes, littleEndian) {
-  var getter = 'get' + (signed ? 'Int' : 'Uint') + (bytes*8);
-  var ret = []; // TODO make this a typed array?
-  //console.log(getter + ' * ' + count);
-  while (count--) {
-    ret.push(this.data[getter](this.pos, littleEndian));
-    this.pos += bytes;
-  }
-  return ret;
-};
-/* common count=1 cases */
-BinaryFileReader.prototype.readUint8 = function() {
-  return this.readIntegers(1, false, 1, true)[0];
-}
-BinaryFileReader.prototype.readUint16 = function() {
-  return this.readIntegers(1, false, 2, true)[0];
-}
-BinaryFileReader.prototype.readUint32 = function() {
-  return this.readIntegers(1, false, 4, true)[0];
-}
-
-BinaryFileReader.prototype.readZeroPaddedString = function(length) {
-  var codes = this.readIntegers(length, false, 1);
-  while (codes.length > 0 && codes[codes.length-1] == 0) {
-    codes.pop();
-  }
-  return String.fromCharCode.apply(String, codes);
-};
-
 function XM(file) {
   this.masterVolume = actx.createGain();
   this.masterVolume.gain.value = 0.2;
