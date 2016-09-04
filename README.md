@@ -21,11 +21,13 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - Play most XM files recognizably (if not completely accurately).
  - Optionally scroll to the currently playing pattern row (if the "Show patterns" checkbox is checked before loading the file).
  - Play individual patterns, instruments, and samples.
+ - Loop songs and individual patterns.
  - Click the stop button at the top right to stop playing any sound.
 
 ## Bugs
 
- - Slight lag between patterns, especially noticeable in songs that make extensive use of jumps to make the pattern display do [crazy](https://modarchive.org/index.php?request=view_by_moduleid&query=46653) [things](https://modarchive.org/index.php?request=view_by_moduleid&query=160630).
+ - Loading large files can be very slow (10s of seconds), mostly due to layout of the pattern tables. Uncheck the "show patterns" checkbox to speed it up.
+ - Slight lag between patterns, especially noticeable in songs that make extensive use of jumps to make the pattern display do [crazy](http://www.uofr.net/~willdb/music/xm-player.html#https://api.modarchive.org/downloads.php?moduleid=46653) [things](http://www.uofr.net/~willdb/music/xm-player.html#https://api.modarchive.org/downloads.php?moduleid=160630).
  - Occasional larger hiccups in the middle of patterns, especially in songs with many channels playing at once.
  - Rarely, releasing a note with a looping note causes stack overflow, making the song get stuck completely.
  - Some notes seem to play longer than they should.
