@@ -39,38 +39,40 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - Amiga frequency table (linear used instead, and makes esp. portamentos sound wrong in songs set to use Amiga table)
  - Ping-pong loops (forward loops used instead)
  - Effects:
-  - 7xy Tremolo (oscillating volume)
-  - E3x Glissando (discrete pitch slide)
-  - E4x Set vibrato (oscillating pitch) waveform (it stays at the instrument's setting)
-  - E5x Set note finetune (ditto)
-  - E6x Pattern loop
-  - E7x Set tremolo (oscillating volume) waveform
-  - E8x either "set note panning position" (like 8xx) or "sync" (like Wxx)
-  - E9x Retrigger note
-  - EDx Note delay
-  - EEx Pattern delay
-  - Lxx Set volume envelope position
-  - Pxy Panning slide
-  - Rxy Retrigger + volume slide
-  - Txy Tremor (interrupting volume)
-  - Wxx Sync
+   - 7xy Tremolo (oscillating volume)
+   - E3x Glissando (discrete pitch slide)
+   - E4x Set vibrato (oscillating pitch) waveform (it stays at the instrument's setting)
+   - E5x Set note finetune (ditto)
+   - E6x Pattern loop
+   - E7x Set tremolo (oscillating volume) waveform
+   - E8x either "set note panning position" (like 8xx) or "sync" (like Wxx)
+   - E9x Retrigger note
+   - EDx Note delay
+   - EEx Pattern delay
+   - Lxx Set volume envelope position
+   - Pxy Panning slide
+   - Rxy Retrigger + volume slide
+   - Txy Tremor (interrupting volume)
+   - Wxx Sync
 
 ## Some other ways to play XM files
 
  - Players
-  - [MikMod](http://mikmod.sourceforge.net/): cross-platform, plays many formats
-  - In a web browser:
-   - [jsxm](https://github.com/a1k0n/jsxm/): very similar to mine, but:
-    - sounds more faithful to FT2
-    - displays less information from the file (just the title, the patterns as they play, and the instrument names and waveforms)
-    - uses the Web Audio API merely as a place to stuff PCM samples into, rather than taking full advantage of its relevant features (perhaps that was the right decision, given the results)
-    - requires drag-and-drop to open local files, rather than an "open" dialog window
-   - [chiptune2.js](https://github.com/deskjet/chiptune2.js): emscripten port of the library behind OpenMPT
+   - [MikMod](http://mikmod.sourceforge.net/): cross-platform, plays many formats
+   - In a web browser:
+     - [jsxm](https://github.com/a1k0n/jsxm/): very similar to mine, but:
+       - sounds more faithful to FT2
+       - displays less information from the file (just the title, the patterns as they play, and the instrument names and waveforms)
+       - uses the Web Audio API merely as a place to stuff PCM samples into, rather than taking full advantage of its relevant features (perhaps that was the right decision, given the results)
+       - requires drag-and-drop to open local files, rather than an "open" dialog window
+
+     - [chiptune2.js](https://github.com/deskjet/chiptune2.js): emscripten port of the library behind OpenMPT
+
  - Editors:
-  - [FastTracker 2](http://www.pouet.net/prod.php?which=13350): DOS, the original
-  - [MilkyTracker](http://www.milkytracker.org/): cross-platform
-  - [SoundTracker](http://www.soundtracker.org/): Unix, no longer maintained
-  - [OpenMPT](https://openmpt.org/): Windows-only
+   - [FastTracker 2](http://www.pouet.net/prod.php?which=13350): DOS, the original
+   - [MilkyTracker](http://www.milkytracker.org/): cross-platform
+   - [SoundTracker](http://www.soundtracker.org/): Unix, no longer maintained
+   - [OpenMPT](https://openmpt.org/): Windows-only
 
 ## XM format resources
 
@@ -79,6 +81,6 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - [The MilkyTracker Manual](http://www.milkytracker.org/docs/MilkyTracker.html) is similar in spirit to FT2.DOC, but goes into a little more detail (but still frustratingly lacks units on many of the effect parameters).
  - [A1k0n's blog post on writing jsxm](https://www.a1k0n.net/2015/11/09/javascript-ft2-player.html) has the most useful explanation of ticks, rows, note periods/frequencies, speed/tempo, and BPM (units!). These things are defined half-heartedly, if at all, in the other documents, and can be confusing (e.g. a beat is four rows, except when it isn't...). It also has a reasonable introduction to other basic tracker concepts I was already familiar with. It deliberately has almost no information on specific effects, though.
  - One of the XM files I had lying around used an effect not documented in any of the above documentation: `Wxx`. I found out it's not supported by FT2 at all, but is supported by the BASS player, and is used to trigger a synchronization callback. It's documented in these places:
-  - [The BASS changelog](https://github.com/azuisleet/gmodmodules/blob/master/gm_bass/bass/bass.txt#L1688), which is how I found it.
-  - [The documentation for `BASSMOD_MusicSetSync`](http://wingzone.tripod.com/bassmod/BASSMOD_MusicSetSync.html), which sets up the callback (`Wxx` is buried in the text).
+   - [The BASS changelog](https://github.com/azuisleet/gmodmodules/blob/master/gm_bass/bass/bass.txt#L1688), which is how I found it.
+   - [The documentation for `BASSMOD_MusicSetSync`](http://wingzone.tripod.com/bassmod/BASSMOD_MusicSetSync.html), which sets up the callback (`Wxx` is buried in the text).
 
