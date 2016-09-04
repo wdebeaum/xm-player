@@ -607,7 +607,7 @@ function triggerVibrato(when) {
   } else {
     var sweepEndTime = when + this.vibrato.sweep * this.xm.tickDuration();
     this.vibratoAmplitudeNode.gain.value = 0;
-    this.vibratoAmplitudeNode.linearRampToValueAtTime(gain, sweepEndTime);
+    this.vibratoAmplitudeNode.gain.linearRampToValueAtTime(gain, sweepEndTime);
   }
   this.vibratoNode.start(when);
 },
