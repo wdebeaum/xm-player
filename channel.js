@@ -1,3 +1,42 @@
+function sampleDataToBufferSource(data, bytesPerSample) {
+  var bs = actx.createBufferSource();
+  var buffer = actx.createBuffer(1, (data.length || 1), 44100);
+  var floatData = new Float32Array(data.length);
+  // 256 values per byte, minus one bit for sign
+  var divisor = Math.pow(256, bytesPerSample) / 2;
+  for (var i = 0; i < data.length; i++) {
+    floatData[i] = data[i] / divisor;
+  }
+  buffer.copyToChannel(floatData, 0);
+  bs.buffer = buffer;
+  return bs;
+}
+
+var lastLag = 0;
+
+// call fn(startTime+delay) at time startTime+delay, or immediately if that has
+// already passed. Return a function that can be used to cancel calling fn.
+function afterDelay(startTime, delay, fn) {
+  var endTime = startTime + delay;
+  if (actx.currentTime >= endTime) {
+    if (actx.currentTime > lastLag + 10) {
+      console.log('WARNING: lag');
+      lastLag = actx.currentTime;
+    }
+    fn(endTime);
+    return function() {};
+  } else {
+    var bs = actx.createBufferSource();
+    bs.buffer = actx.createBuffer(1,2,22050);
+    bs.loop = true;
+    bs.onended = fn.bind(this, endTime);
+    bs.connect(actx.destination); // Chrome needs this
+    bs.start();
+    bs.stop(endTime);
+    return function() { bs.onended = undefined; bs.stop(); };
+  }
+}
+
 /* One channel/track as it plays notes. */
 function Channel(xm) {
   this.xm = xm;

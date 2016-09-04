@@ -1,3 +1,82 @@
+// first some HTML-building support vars/functions
+
+var svgNS = 'http://www.w3.org/2000/svg';
+var noteLetters = ['C-','C#','D-','D#','E-','F-','F#','G-','G#','A-','A#','B-'];
+var volumeEffectLetters = ['-', '+', '▼', '▲', 'S', 'V', 'P', '◀', '▶', 'M'];
+var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
+var loopTypes = ['none', 'forward', 'ping-pong'];
+
+if (!String.prototype.encodeHTML) {
+  String.prototype.encodeHTML = function () {
+    return this.replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;')
+               .replace(/"/g, '&quot;')
+               .replace(/'/g, '&apos;');
+  };
+}
+
+function noteNumberToName(num) {
+  if (num == 97) {
+    return 'off';
+  } else if (num == 0) {
+    return '···';
+  } else if (num > 97) {
+    return 'err';
+  } else {
+    num--;
+    return '' + noteLetters[num % 12] + Math.floor(num / 12);
+  }
+}
+
+function appendHeading(parentNode, level, text) {
+  var h = document.createElement('h' + level);
+  h.appendChild(document.createTextNode(text));
+  parentNode.appendChild(h);
+}
+
+// onclick may be a string to put in the onclick attribute, or a function to
+// assign to the onclick property
+function appendButton(parentNode, label, onclick) {
+  var button = document.createElement('button');
+  switch (typeof onclick) {
+    case 'string':
+      button.setAttribute('onclick', onclick);
+      break;
+    case "function":
+      button.onclick = onclick;
+      break;
+    case "undefined":
+      // do nothing
+      break;
+    default:
+      console.log('weird onclick value for button labeled ' + label);
+      console.log(onclick);
+  }
+  button.appendChild(document.createTextNode(label));
+  parentNode.appendChild(button);
+}
+
+function appendBreak(parentNode) {
+  parentNode.appendChild(document.createElement('br'));
+}
+
+function appendLine(parentNode, text) {
+  parentNode.appendChild(document.createTextNode(text));
+  appendBreak(parentNode);
+}
+
+function formatVolume(val) {
+  if (val == 0) {
+    return '··';
+  } else if (val < 0x60) {
+    return val.toString(16);
+  } else {
+    return volumeEffectLetters[(val>>4)-6] + (val&0xf).toString(16);
+  }
+}
+
+/* The XM class is for reading and displaying XM file data. */
 function XM(file) {
   this.masterVolume = actx.createGain();
   this.masterVolume.gain.value = 0.2;
