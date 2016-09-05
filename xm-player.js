@@ -5,6 +5,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
 }
 
 var actx;
+var maxVolume = 0.2;
 // HTML elements
 var showPatternsInput;
 var xmUrlInput;

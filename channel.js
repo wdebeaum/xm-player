@@ -248,8 +248,18 @@ function applyGlobalEffect(when, effectType, effectParam) {
 	this.xm.currentBPM = effectParam;
       }
       break;
+    case 0x10: // set global volume
+      this.xm.setVolume(when, effectParam);
+      break;
+    case 0x11: // global volume slide
+      var hi = (effectParam >> 4);
+      var lo = (effectParam & 0xf);
+      var upDown = (hi ? true : false);
+      var hiLo = (upDown ? hi : lo);
+      this.xm.volumeSlide(when, upDown, hiLo);
+      break;
     default:
-      /* TODO apply other global effects */
+      /* TODO apply other global effects? */
   }
 },
 
@@ -261,6 +271,8 @@ function applyEffect(when, effectType, effectParam) {
   var oldPbr = this.nextPbr;
   var hi = (effectParam >> 4);
   var lo = (effectParam & 0xf);
+  var upDown = (hi ? true : false);
+  var hiLo = (upDown ? hi : lo);
   switch (effectType) {
     case 0x0: // arpeggio
       // theoretically it would be OK if we did this even with effectParam==0,
@@ -301,19 +313,11 @@ function applyEffect(when, effectType, effectParam) {
       break;
     case 0x5: // porta towards note and volume slide
       this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
-      if (hi) { // up
-        this.volumeSlide(when, true, (hi<<2));
-      } else { // down
-        this.volumeSlide(when, false, (lo<<2));
-      }
+      this.volumeSlide(when, upDown, hiLo);
       break;
     case 0x6: // vibrato and volume slide
       this.triggerVibrato(when);
-      if (hi) { // up
-        this.volumeSlide(when, true, (hi<<2));
-      } else { // down
-        this.volumeSlide(when, false, (lo<<2));
-      }
+      this.volumeSlide(when, upDown, hiLo);
       break;
     case 0x7: break; // TODO tremolo
     case 0x8: // set panning
@@ -321,11 +325,7 @@ function applyEffect(when, effectType, effectParam) {
       break;
     // case 0x9: break; sample offset see applyCommand
     case 0xa: // volume slide
-      if (hi) { // up
-        this.volumeSlide(when, true, (hi<<2));
-      } else { // down
-        this.volumeSlide(when, false, (lo<<2));
-      }
+      this.volumeSlide(when, upDown, hiLo);
       break;
     case 0xb: // jump to song position
       this.xm.nextSongPosition = effectParam;
@@ -351,6 +351,9 @@ function applyEffect(when, effectType, effectParam) {
 	  this.volumeSlide(when, (hi == 0xa), lo / this.xm.currentTempo);
 	  break;
 	case 0xc: // note cut
+	  // FIXME actually, this just "sets the note volume to 0"; the note
+	  // may be resurrected on a following row (see jumping.xm pattern 3,
+	  // rows 0x0e-0x1b)
 	  this.cutNote(when + this.xm.tickDuration() * lo);
 	  break;
 	case 0xd: break; // TODO delay note
@@ -453,7 +456,8 @@ function getFadeoutVolume(when, unfadedVolume) {
   }
 },
 
-/* Set the actual note volume (not the volume column, not the envelope). */
+/* Set the actual note volume 0-0x40 (not the volume column, not the envelope).
+ */
 function setVolume(when, volume) {
   if (when === undefined) { when = actx.currentTime; }
   this.volume = volume;
@@ -475,11 +479,12 @@ function setVolume(when, volume) {
   }
 },
 
+/* Slide volume in ±64ths of full volume per tick. */
 function volumeSlide(when, up, rate) {
   // FIXME how does this interact with instrument volume fadeout?
   var duration = this.xm.rowDuration();
   var oldVolume = this.volume;
-  var newVolume = oldVolume + (up ? -1 : 1) * rate * this.xm.currentTempo;
+  var newVolume = oldVolume + (up ? 1 : -1) * rate * this.xm.currentTempo;
   // clamp 0-0x40
   if (newVolume < 0) {
     newVolume = 0;

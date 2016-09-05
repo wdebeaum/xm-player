@@ -79,8 +79,8 @@ function formatVolume(val) {
 /* The XM class is for reading and displaying XM file data. */
 function XM(file) {
   this.masterVolume = actx.createGain();
-  this.masterVolume.gain.value = 0.2;
   this.masterVolume.connect(actx.destination);
+  this.resetVolume();
   this.binaryReader = new BinaryFileReader(file);
   this.channels = [];
   this.channelSettings = [];
@@ -90,6 +90,15 @@ function XM(file) {
 }
 
 [ // begin XM methods
+
+function resetVolume() {
+  this.setVolume(undefined, 0x40); // XM max volume
+},
+
+function resetTempoBPM() {
+  this.currentTempo = this.defaultTempo;
+  this.currentBPM = this.defaultBPM;
+},
 
 function onBinaryLoad() {
   this.readSongHeader();
@@ -529,6 +538,37 @@ function drawSampleData(s) {
   );
 },
 
+/* Set the global volume. (See also the same function in Channel) */
+function setVolume(when, volume) {
+  if (when === undefined) { when = actx.currentTime; }
+  this.globalVolume = volume;
+  var volumeFraction = maxVolume * volume / 0x40;
+  if (when > actx.currentTime) {
+    this.masterVolume.gain.setValueAtTime(volumeFraction, when);
+  } else {
+    this.masterVolume.gain.value = volumeFraction;
+  }
+},
+
+/* Slide the global volume up or down. (See also the same function in Channel)
+ */
+function volumeSlide(when, up, rate) {
+  var duration = this.rowDuration();
+  var oldVolume = this.globalVolume;
+  var newVolume = oldVolume + (up ? 1 : -1) * rate * this.currentTempo;
+  // clamp 0-0x40
+  if (newVolume < 0) {
+    newVolume = 0;
+  } else if (newVolume > 0x40) {
+    newVolume = 0x40;
+  }
+  this.globalVolume = newVolume; // for next row
+  // FIXME should I make sure it's exactly oldVolume at "when", in case it's
+  // not now?
+  this.masterVolume.gain.linearRampToValueAtTime(
+      maxVolume * newVolume / 0x40, when + duration);
+},
+
 // return the factor to multiply (porta up) or divide (porta down) the playback
 // rate by for an entire row (not just one tick) for the given effect parameter
 // value
@@ -594,9 +634,7 @@ function playPattern(pattern, patternIndex, startRow, onEnded, loop, startTime) 
 function stopAllChannels() {
   this.nextSongPosition = undefined;
   this.nextPatternStartRow = undefined;
-  for (var i = 0; i < this.channels.length; i++) {
-    this.channels[i].cutNote();
-  }
+  this.channels.forEach(function(c) { c.cutNote() });
 },
 
 function playSong(startIndex, onEnded, loop) {
@@ -607,10 +645,7 @@ function playSong(startIndex, onEnded, loop) {
     return;
   }
   if (startIndex === undefined) { startIndex = 0; }
-  if (startIndex == 0) {
-    this.currentTempo = this.defaultTempo;
-    this.currentBPM = this.defaultBPM;
-  }
+  if (startIndex == 0) { this.resetTempoBPM(); } // I think?
   if (this.nextSongPosition !== undefined) {
     startIndex = this.nextSongPosition;
     this.nextSongPosition = undefined;
