@@ -4,6 +4,15 @@ if (AudioContext === undefined && webkitAudioContext !== undefined) {
 }
 // Safari lacks this
 var haveStereoPanner = ('createStereoPanner' in AudioContext.prototype);
+// and this
+if (!('copyToChannel' in AudioBuffer.prototype)) {
+  AudioBuffer.prototype.copyToChannel = function(source, channelNumber) {
+    var d = this.getChannelData(channelNumber);
+    for (var i = 0; i < source.length; i++) {
+      d[i] = source[i];
+    }
+  }
+}
 
 function sampleDataToBufferSource(data, bytesPerSample) {
   var bs = actx.createBufferSource();
