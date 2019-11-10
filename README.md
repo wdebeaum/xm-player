@@ -69,7 +69,7 @@ This is a tool for reading and playing music files in the [XM format](https://en
 
  - Editors:
    - [FastTracker 2](http://www.pouet.net/prod.php?which=13350): DOS, the original
-   - [MilkyTracker](http://www.milkytracker.org/): cross-platform
+   - [MilkyTracker](http://milkytracker.github.io/): cross-platform
    - [SoundTracker](http://www.soundtracker.org/): Unix, no longer maintained
    - [OpenMPT](https://openmpt.org/): Windows-only
 
@@ -77,7 +77,7 @@ This is a tool for reading and playing music files in the [XM format](https://en
 
  - FT2.DOC from the FastTracker 2 download above, documents usage of FT2 as well as the list of effects, but not their representation in the file format.
  - The XM 2.04 format documentation (ftp://ftp.modland.com/pub/documents/format%5fdocumentation/FastTracker%202%20v2.04%20%28.xm%29.html) documents the file format, but has fewer details about the effects. It's also written by one of the authors of FT2, but was then extended and corrected (!) by others.
- - [The MilkyTracker Manual](http://www.milkytracker.org/docs/MilkyTracker.html) is similar in spirit to FT2.DOC, but goes into a little more detail (but still frustratingly lacks units on many of the effect parameters).
+ - [The MilkyTracker Manual](http://milkytracker.github.io/docs/MilkyTracker.html) is similar in spirit to FT2.DOC, but goes into a little more detail (but still frustratingly lacks units on many of the effect parameters).
  - [A1k0n's blog post on writing jsxm](https://www.a1k0n.net/2015/11/09/javascript-ft2-player.html) has the most useful explanation of ticks, rows, note periods/frequencies, speed/tempo, and BPM (units!). These things are defined half-heartedly, if at all, in the other documents, and can be confusing (e.g. a beat is four rows, except when it isn't...). It also has a reasonable introduction to other basic tracker concepts I was already familiar with. It deliberately has almost no information on specific effects, though.
  - One of the XM files I had lying around used an effect not documented in any of the above documentation: `Wxx`. I found out it's not supported by FT2 at all, but is supported by the BASS player, and is used to trigger a synchronization callback. It's documented in these places:
    - [The BASS changelog](https://github.com/azuisleet/gmodmodules/blob/master/gm_bass/bass/bass.txt#L1688), which is how I found it.
