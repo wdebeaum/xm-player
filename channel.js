@@ -251,7 +251,9 @@ function applyCommand(when, note) {
 function applyGlobalEffect(when, effectType, effectParam) {
   switch (effectType) {
     case 0xf: // set tempo/BPM
-      if (effectParam < 0x20) {
+      if (effectParam == 0) {
+	stopPlaying(); // FIXME kind of icky to call back into xm-player.js from here
+      } else if (effectParam < 0x20) {
 	this.xm.currentTempo = effectParam;
       } else {
 	this.xm.currentBPM = effectParam;
