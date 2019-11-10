@@ -53,6 +53,12 @@ function afterDelay(startTime, delay, fn) {
   }
 }
 
+/* NOTE: note numbers can technically go up to 96, but sampleNumberForAllNotes
+ * indices only go up to 95, and FT2 will actually only play notes up to 90
+ * (though it will display 96 correctly as B-7). Weird.
+ */
+var maxNoteNum = 90;
+
 /* One channel/track as it plays notes. */
 function Channel(xm) {
   this.xm = xm;
@@ -125,6 +131,11 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     this.sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
   } else {
     this.sample = this.instrument.samples[0];
+  }
+  if (this.sample === undefined) {
+    // sample lookup somehow still failed; give up on this note
+    this.notePhase = 'off';
+    return;
   }
   this.nextPbr =
     computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
@@ -231,7 +242,7 @@ function applyCommand(when, note) {
   if (effectType == 0x03 || effectType == 0x05 ||
       (volume & 0xf0) == 0xf0) {
     // portamento to note, don't trigger a new note
-    if (noteNum > 0 && noteNum < 97 && this.notePhase != 'off') {
+    if (noteNum > 0 && noteNum <= maxNoteNum && this.notePhase != 'off') {
       this.targetPbr =
 	computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
       this.setVolume(when, this.sample.volume);
@@ -241,7 +252,7 @@ function applyCommand(when, note) {
     // TODO
   } else if (noteNum == 97) {
     this.releaseNote(when + triggerDelay);
-  } else if (noteNum > 0 && noteNum < 97) {
+  } else if (noteNum > 0 && noteNum <= maxNoteNum) {
     this.triggerNote(when + triggerDelay, noteNum, instrumentNum, sampleOffset);
   }
   this.applyVolume(when, volume);
