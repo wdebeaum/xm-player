@@ -30,7 +30,6 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - Loading large files can be very slow (10s of seconds), mostly due to layout of the pattern tables. Uncheck the "show patterns" checkbox to speed it up.
  - Slight lag between patterns, especially noticeable in songs that make extensive use of jumps to make the pattern display do [crazy](http://www.uofr.net/~willdb/music/xm-player.html#https://api.modarchive.org/downloads.php?moduleid=46653) [things](http://www.uofr.net/~willdb/music/xm-player.html#https://api.modarchive.org/downloads.php?moduleid=160630).
  - Occasional larger hiccups in the middle of patterns, especially in songs with many channels playing at once.
- - Rarely, releasing a note with a looping envelope causes stack overflow, making the song get stuck completely.
  - The Fxx effect sets the tempo/BPM for events yet to be scheduled, but doesn't update previously-scheduled future events whose timing depends on these parameters (e.g. volume/panning envelopes).
  - The ECx "note cut" effect actually cuts the note, when it should just set the volume to 0 so the note can be resurrected by later commands (such as a "new" note with a tone porta)
 

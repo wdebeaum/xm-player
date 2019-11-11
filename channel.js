@@ -39,8 +39,11 @@ function afterDelay(startTime, delay, fn) {
       console.log('WARNING: lag');
       lastLag = actx.currentTime;
     }
-    fn(endTime);
-    return function() {};
+    // Instead of actually calling fn(endTime) immediately, let this function
+    // (and its callers) return, and then call fn(endTime). This way we avoid
+    // overflowing the stack when we hit a lag spike during an envelope loop.
+    var tid = setTimeout(function() { fn(endTime); }, 0);
+    return function() { clearTimeout(tid); };
   } else {
     var bs = actx.createBufferSource();
     bs.buffer = actx.createBuffer(1,2,22050);
