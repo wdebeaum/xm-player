@@ -32,6 +32,7 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - Occasional larger hiccups in the middle of patterns, especially in songs with many channels playing at once.
  - The Fxx effect sets the tempo/BPM for events yet to be scheduled, but doesn't update previously-scheduled future events whose timing depends on these parameters (e.g. volume/panning envelopes).
  - The ECx "note cut" effect actually cuts the note, when it should just set the volume to 0 so the note can be resurrected by later commands (such as a "new" note with a tone porta)
+ - On Firefox (tested on version 84.0.2), the instrument volume fadeout setting doesn't work properly; the note stays at full volume until it would have faded out completely, and then cuts off. This is due to a bug in the implementation of the `linearRampToValueAtTime` method from the Web Audio API, represented by Firefox bugs [1567777](https://bugzilla.mozilla.org/show_bug.cgi?id=1567777) and [1171438](https://bugzilla.mozilla.org/show_bug.cgi?id=1171438). It's likely this affects other things involving volume ramps, like vibrato and envelopes, but the fadeout setting is how I noticed it. I'm not hopeful the bug will be fixed soon (as of 2021), since it was first reported 6 years ago and the last activity on the bug reports was 2 years ago.
 
 ## Unimplemented XM features
 
