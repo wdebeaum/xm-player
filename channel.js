@@ -56,11 +56,15 @@ function afterDelay(startTime, delay, fn) {
   }
 }
 
-/* NOTE: note numbers can technically go up to 96, but sampleNumberForAllNotes
- * indices only go up to 95, and FT2 will actually only play notes up to 90
- * (though it will display 96 correctly as B-7). Weird.
+/* FIXME: on 2019-11-10 it seems I tested FT2 and thought it wouldn't play
+ * notes above noteNum 90, but I just tested with a different file on
+ * 2021-01-17 and it did. Something else must be going on. For now I set this
+ * back from 90 to 95.
+ * OLD NOTE: note numbers can technically go up to 96, but
+ * sampleNumberForAllNotes indices only go up to 95, and FT2 will actually only
+ * play notes up to 90 (though it will display 96 correctly as B-7). Weird.
  */
-var maxNoteNum = 90;
+var maxNoteNum = 95;
 
 /* One channel/track as it plays notes. */
 function Channel(xm) {
