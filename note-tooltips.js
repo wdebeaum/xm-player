@@ -72,7 +72,7 @@ function noteTooltips(note) {
 	  case 0x7:
 	    return 'set tremolo waveform to ' + vibratoTremoloWaveform(lo);
 	  case 0x9:
-	    return 'retrigger note every ' + lo + ' ticks in this row';
+	    return 'retrigger note every ' + lo + ' ticks in this row, except the first';
 	  case 0xa:
 	    return 'fine volume slide up ' + lo + ' / 0x40 of full volume, per row';
 	  case 0xb:

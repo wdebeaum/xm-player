@@ -374,7 +374,20 @@ function applyEffect(when, effectType, effectParam) {
 	case 0x2: // fine porta down
 	  this.portamento(when, (hi == 0x1), lo / this.xm.currentTempo);
 	  break;
-	// 0x3-0x9 TODO
+	// 0x3-0x8 TODO
+	case 0x9: // re-trigger note
+	  // NOTE: this only handles *re*-triggering the note; if you just have
+	  // this effect on a row without a note, the already-playing note
+	  // won't retrigger on the first tick of that row, only on subsequent
+	  // re-triggering ticks
+	  // lo is the period in ticks between note triggers
+	  var td = this.xm.tickDuration();
+	  for (var tick = lo; tick < this.xm.currentTempo; tick += lo) {
+	    var reWhen = when + tick * td;
+	    // NOTE: instrument==0 preserves current instrument setting
+	    this.triggerNote(reWhen, this.noteNum, 0, 0);
+	  }
+	  break;
 	case 0xa: // fine volume slide up
 	case 0xb: // fine volume slide down
 	  this.volumeSlide(when, (hi == 0xa), lo / this.xm.currentTempo);
@@ -385,8 +398,8 @@ function applyEffect(when, effectType, effectParam) {
 	  // rows 0x0e-0x1b)
 	  this.cutNote(when + this.xm.tickDuration() * lo);
 	  break;
-	case 0xd: break; // TODO delay note
-	case 0xe: break; // TODO delay pattern
+	case 0xd: break; // delay note (see applyCommand)
+	case 0xe: break; // delay pattern (see applyCommand)
 	default:
 	  // TODO
       }
@@ -397,7 +410,7 @@ function applyEffect(when, effectType, effectParam) {
       break;
     case 0x15: break; // TODO volume envelope jump
     case 0x19: break; // TODO panning slide
-    case 0x1b: break; // TODO retrigger
+    case 0x1b: break; // TODO retrigger with volume slide
     case 0x1d: break; // TODO tremor
     case 0x21: // extra fine portamento
       switch (hi) {

@@ -46,7 +46,6 @@ This is a tool for reading and playing music files in the [XM format](https://en
    - E6x Pattern loop
    - E7x Set tremolo (oscillating volume) waveform
    - E8x either "set note panning position" (like 8xx) or "sync" (like Wxx)
-   - E9x Retrigger note
    - EDx Note delay
    - EEx Pattern delay
    - Lxx Set volume envelope position
