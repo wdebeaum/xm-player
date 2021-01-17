@@ -387,7 +387,7 @@ function drawInstrument(ii) {
     appendLine(instrumentsDiv, 'Vibrato: ' + vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
   }
   if (ret.volumeFadeout > 0) {
-    appendLine(instrumentsDiv, 'Volume fadeout: reduce volume by ' + ret.volumeFadeout + ' / 65536 of what it would be otherwise, per tick after note release');
+    appendLine(instrumentsDiv, 'Volume fadeout: reduce volume by ' + ret.volumeFadeout + ' / 32768 of what its full volume would be otherwise, per tick after note release');
   }
   for (var si = 0; si < ret.numberOfSamples; si++) {
     appendHeading(instrumentsDiv, 4, 'Sample ' + si);

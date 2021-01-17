@@ -477,7 +477,7 @@ function getFadeoutVolume(when, unfadedVolume) {
   } else {
     // FIXME what if BPM changes?
     return unfadedVolume *
-      (1 - (this.xm.tickDuration() * this.instrument.volumeFadeout / 0x10000));
+      (1 - (this.xm.tickDuration() * this.instrument.volumeFadeout / 0x8000));
   }
 },
 
@@ -497,8 +497,8 @@ function setVolume(when, volume) {
       // FIXME what if BPM changes?
       var fadeoutEndTime = // time when volume reaches 0
         when +
-        volumeFraction * this.xm.tickDuration() * 0x10000 /
-	this.instrument.volumeFadeout
+        volumeFraction * this.xm.tickDuration() * 0x8000 /
+	this.instrument.volumeFadeout;
       this.volumeNode.gain.linearRampToValueAtTime(0, fadeoutEndTime);
     }
   }
