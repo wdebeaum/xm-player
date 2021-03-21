@@ -30,6 +30,18 @@ function sampleDataToBufferSource(data, bytesPerSample) {
 
 var lastLag = 0;
 
+// return a version of fn that will only ever call the original fn once; any
+// subsequent calls to the returned function will do nothing
+function once(fn) {
+  var first = true;
+  return function(...args) {
+    if (first) {
+      first = false;
+      return fn(...args);
+    }
+  }
+}
+
 // call fn(startTime+delay) at time startTime+delay, or immediately if that has
 // already passed. Return a function that can be used to cancel calling fn.
 function afterDelay(startTime, delay, fn) {
@@ -48,7 +60,9 @@ function afterDelay(startTime, delay, fn) {
     var bs = actx.createBufferSource();
     bs.buffer = actx.createBuffer(1,2,22050);
     bs.loop = true;
-    bs.onended = fn.bind(this, endTime);
+    // Chrome apparently has a bug where it can call onended multiple times for
+    // the same node; once() makes sure fn only gets called the first time
+    bs.onended = once(fn.bind(this, endTime));
     bs.connect(actx.destination); // Chrome needs this
     bs.start();
     bs.stop(endTime);
