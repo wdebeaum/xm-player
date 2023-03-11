@@ -1,3 +1,4 @@
+? add onhashchange handler so that when we edit the url to go to another song, it actually loads the new song when I press enter, without me having to reload the whole page with the reload button
 # pitch is off relative to jsxm; check sign of finetune/relnote?
 # sometimes lags, particularly noticeable in mysong66.xm
  # avoid using actx.currentTime and instead pass along the time it's supposed to be as a starting point
@@ -53,3 +54,20 @@
   > might have something to do with Amiga frequency table
  - releasing a note with a looping envelope can cause stack overflow?!
   > thought I fixed this, guess I didn't... gateways{1,2}.xm do it
+ - multiple bugs in charons-hornpipe.xm:
+  X note off not working/not timed correctly (end of row instead of beginning?)
+   > only in Firefox
+   > and in jsxm to some extent?
+   > this is bug 1171438 again, I think
+  - extended portamento (3xx) causes notes not to even play (jsxm does this too?!)
+   > jsxm also seems to bitcrush the whistle; FT2 does neither of these
+   > in both Chrome and Firefox
+   > maybe same root cause as HYPERMMX problem above?
+   > fixed this in the song by not having an envelope on porta'd notes
+  - sounds like the tempo changes (Fxx) in pattern 3 cause the whistle notes to be doubled somehow? suspect something to do with rescheduling notes not descheduling the old versions
+   > only in Firefox?
+   > I think this is the Fxx bug in the readme
+  - volume slide down in volume column is too slow
+   > volume slide (should) happens tick by tick; fine volume slide happens on one of the ticks in a row (the first), and regular volume slide happens on all the other ticks (same whether in volume column or effect column)
+   > anyway the rate is such that at speed/tempo 1, nothing happens, at speed 2 it's in 64ths of max volume per *row*, and at speed 3 it's twice what it was at speed 2, etc.
+   > panning slide and global volume slide work similarly

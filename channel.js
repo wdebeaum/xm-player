@@ -253,6 +253,7 @@ function applyCommand(when, note) {
   var volume = note[2];
   var effectType = note[3];
   var effectParam = note[4];
+  // TODO if effectParam==0 set it to prev value for some types: 1-7, A, E1-2, EA-B, H (0x11), P, R, X1, X2 (prev value for that type, or any type? what about Exx with part of the type in the param?) (also do this for tooltips)
   this.applyGlobalEffect(when, effectType, effectParam);
   var sampleOffset = 0;
   if (effectType == 0x09) { sampleOffset = effectParam * 0x100; /* bytes */ }
@@ -267,6 +268,13 @@ function applyCommand(when, note) {
       this.targetPbr =
 	computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
       this.setVolume(when, this.sample.volume);
+      // FIXME!!! this is an attempted solution to extended 3xx portamento not playing with a short envelope... it's almost right, but still sounds off, and occasionally still drops notes
+      if ('volumeEnvelope' in this.instrument) {
+	this.retriggerEnvelope(when, 'volume');
+      }
+      if ('panningEnvelope' in this.instrument) {
+	this.retriggerEnvelope(when, 'panning');
+      }
     }
   } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
     // delay pattern
@@ -645,6 +653,12 @@ function triggerEnvelope(when, which, firstPoint) {
 	  this.loopEnvelope.bind(this, targetTime, which));
     }
   }
+},
+
+/* Restart volume/panning envelope on already playing note. */
+function retriggerEnvelope(when, which) {
+  this.cutEnvelope(when, which);
+  this.triggerEnvelope(when, which);
 },
 
 /* Sustain volume/panning envelope by looping back to the loop start position.
