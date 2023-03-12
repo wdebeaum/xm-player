@@ -19,4 +19,4 @@ node_modules/%/package.json:
 	npm install $*
 
 clean:
-	rm -f README.html
+	rm -rf README.html jsdoc
