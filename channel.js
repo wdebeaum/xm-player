@@ -279,7 +279,8 @@ class Channel {
 
   /** Process a 5-element note/command array from a pattern.
    * @param {number} when
-   * @param {number[5]} note
+   * @param {number[]} note - 5 elements: note, instrument, volume, effect
+   * type, effect parameter
    */
   applyCommand(when, note) {
     const [noteNum, instrumentNum, volume, effectType, effectParam] = note;

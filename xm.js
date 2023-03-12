@@ -410,7 +410,7 @@ class XM {
    * @param {Object} instr - instrument to be returned by {@link
    * #readInstrument}
    * @param {string} volumeOrPanning - 'volume' or 'panning'
-   * @param {number[24]} points - flattened point data, 16-bit unsigned integers
+   * @param {number[]} points - flattened point data, 24 16-bit unsigned ints
    * @param {number} numberOfPoints - number of valid points in the data
    * @param {number} sustainPoint - index of point to stay at while sustaining
    * a note
@@ -656,7 +656,7 @@ class XM {
   }
 
   /** Play (the rest of) one pattern in a song.
-   * @param {Array.<Array.<number[5]>>} pattern - array of rows, each of which
+   * @param {Array.<Array.<number[]>>} pattern - array of rows, each of which
    * is an array of notes, each of which is an array of 5 numbers
    * @param {number} patternIndex - index of the pattern in the patterns array
    * @param {number} [startRow=0] - index of the pattern row to start with

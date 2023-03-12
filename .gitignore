@@ -2,6 +2,7 @@
 *.wav
 *.xm
 README.html
+jsdoc/
 old/
 node_modules/
 package-lock.json

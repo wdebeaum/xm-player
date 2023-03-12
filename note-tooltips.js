@@ -9,8 +9,8 @@ function vibratoTremoloWaveform(lo) {
 
 /* exported noteTooltips */
 /**
- * @param {number[5]} note - columns of an XM note/command
- * @return {string[5]} - tooltips to put on the corresponding <td> elements.
+ * @param {number[]} note - the 5 columns of an XM note/command
+ * @return {string[]} - tooltips to put on the corresponding <td> elements.
  */
 function noteTooltips(note) {
   const volParam = '0x' + (note[2] & 0x0f).toString(16);
