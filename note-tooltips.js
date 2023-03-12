@@ -11,14 +11,14 @@ function vibratoTremoloWaveform(lo) {
  * array of tooltips to put on the corresponding <td> elements. */
 /* exported noteTooltips */
 function noteTooltips(note) {
-  var volParam = '0x' + (note[2] & 0x0f).toString(16);
-  var effParam = '0x' + note[4].toString(16);
-  var hi = (note[4] >> 4);
-  var lo = (note[4] & 0x0f);
-  var upDown = (hi ? 'up by ' + hi : 'down by ' + lo);
+  const volParam = '0x' + (note[2] & 0x0f).toString(16);
+  const effParam = '0x' + note[4].toString(16);
+  const hi = (note[4] >> 4);
+  const lo = (note[4] & 0x0f);
+  const upDown = (hi ? 'up by ' + hi : 'down by ' + lo);
   // use the same tooltip for the effect and its parameter since they're
   // tightly coupled
-  var effectTooltip = (function() {
+  const effectTooltip = (function() {
     switch (note[3]) {
       case 0x00:
         if (note[4]) {

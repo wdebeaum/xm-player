@@ -1,14 +1,14 @@
 // webkit prefix stuff required for Safari
 if (AudioContext === undefined && webkitAudioContext !== undefined) {
-  var AudioContext = webkitAudioContext;
+  window.AudioContext = webkitAudioContext;
 }
 // Safari lacks this
-var haveStereoPanner = ('createStereoPanner' in AudioContext.prototype);
+const haveStereoPanner = ('createStereoPanner' in AudioContext.prototype);
 // and this
 if (!('copyToChannel' in AudioBuffer.prototype)) {
   AudioBuffer.prototype.copyToChannel = function(source, channelNumber) {
-    var d = this.getChannelData(channelNumber);
-    for (var i = 0; i < source.length; i++) {
+    const d = this.getChannelData(channelNumber);
+    for (let i = 0; i < source.length; i++) {
       d[i] = source[i];
     }
   };
@@ -16,12 +16,12 @@ if (!('copyToChannel' in AudioBuffer.prototype)) {
 
 /* exported sampleDataToBufferSource */
 function sampleDataToBufferSource(data, bytesPerSample) {
-  var bs = actx.createBufferSource();
-  var buffer = actx.createBuffer(1, (data.length || 1), 44100);
-  var floatData = new Float32Array(data.length);
+  const bs = actx.createBufferSource();
+  const buffer = actx.createBuffer(1, (data.length || 1), 44100);
+  const floatData = new Float32Array(data.length);
   // 256 values per byte, minus one bit for sign
-  var divisor = Math.pow(256, bytesPerSample) / 2;
-  for (var i = 0; i < data.length; i++) {
+  const divisor = Math.pow(256, bytesPerSample) / 2;
+  for (let i = 0; i < data.length; i++) {
     floatData[i] = data[i] / divisor;
   }
   buffer.copyToChannel(floatData, 0);
@@ -29,12 +29,12 @@ function sampleDataToBufferSource(data, bytesPerSample) {
   return bs;
 }
 
-var lastLag = 0;
+let lastLag = 0;
 
 // return a version of fn that will only ever call the original fn once; any
 // subsequent calls to the returned function will do nothing
 function once(fn) {
-  var first = true;
+  let first = true;
   return function(...args) {
     if (first) {
       first = false;
@@ -47,7 +47,7 @@ function once(fn) {
 // already passed. Return a function that can be used to cancel calling fn.
 /* exported afterDelay */
 function afterDelay(startTime, delay, fn) {
-  var endTime = startTime + delay;
+  const endTime = startTime + delay;
   if (actx.currentTime >= endTime) {
     if (actx.currentTime > lastLag + 10) {
       console.log('WARNING: lag');
@@ -56,10 +56,10 @@ function afterDelay(startTime, delay, fn) {
     // Instead of actually calling fn(endTime) immediately, let this function
     // (and its callers) return, and then call fn(endTime). This way we avoid
     // overflowing the stack when we hit a lag spike during an envelope loop.
-    var tid = setTimeout(function() { fn(endTime); }, 0);
+    const tid = setTimeout(function() { fn(endTime); }, 0);
     return function() { clearTimeout(tid); };
   } else {
-    var bs = actx.createBufferSource();
+    const bs = actx.createBufferSource();
     bs.buffer = actx.createBuffer(1,2,22050);
     bs.loop = true;
     // Chrome apparently has a bug where it can call onended multiple times for
@@ -80,7 +80,7 @@ function afterDelay(startTime, delay, fn) {
  * sampleNumberForAllNotes indices only go up to 95, and FT2 will actually only
  * play notes up to 90 (though it will display 96 correctly as B-7). Weird.
  */
-var maxNoteNum = 95;
+const maxNoteNum = 95;
 
 /* One channel/track as it plays notes. */
 /* exported Channel */
@@ -166,7 +166,7 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     computePlaybackRate(noteNum, this.sample.relativeNoteNumber,
 			this.sample.finetune);
   this.targetPbr = this.nextPbr;
-  var vibratoOn =
+  const vibratoOn =
     (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
   this.vibrato.type = this.instrument.vibratoType;
   this.vibrato.sweep = this.instrument.vibratoSweep;
@@ -175,7 +175,7 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   // set up node graph
   this.volumeNode = actx.createGain();
   this.volumeNode.connect(this.xm.masterVolume);
-  var downstream = this.volumeNode;
+  let downstream = this.volumeNode;
   if ('volumeEnvelope' in this.instrument) {
     this.volumeEnvelopeNode = actx.createGain();
     this.volumeEnvelopeNode.connect(downstream);
@@ -218,8 +218,8 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
   if (vibratoOn) { this.triggerVibrato(when); }
   // trigger sample
   if (offsetInBytes != 0) {
-    var offsetInSamples = offsetInBytes / this.sample.bytesPerSample;
-    var offsetInSeconds = offsetInSamples / 44100;
+    const offsetInSamples = offsetInBytes / this.sample.bytesPerSample;
+    const offsetInSeconds = offsetInSamples / 44100;
     this.bs.start(when, offsetInSeconds);
   } else {
     this.bs.start(when);
@@ -262,16 +262,12 @@ function cutNote(when) {
 
 /* Process a 5-element note/command array from a pattern. */
 function applyCommand(when, note) {
-  var noteNum = note[0];
-  var instrumentNum = note[1];
-  var volume = note[2];
-  var effectType = note[3];
-  var effectParam = note[4];
+  const [noteNum, instrumentNum, volume, effectType, effectParam] = note;
   // TODO if effectParam==0 set it to prev value for some types: 1-7, A, E1-2, EA-B, H (0x11), P, R, X1, X2 (prev value for that type, or any type? what about Exx with part of the type in the param?) (also do this for tooltips)
   this.applyGlobalEffect(when, effectType, effectParam);
-  var sampleOffset = 0;
+  let sampleOffset = 0;
   if (effectType == 0x09) { sampleOffset = effectParam * 0x100; /* bytes */ }
-  var triggerDelay = 0;
+  let triggerDelay = 0;
   if (effectType == 0x0e && (effectParam >> 4) == 0xd) { // delay note
     triggerDelay = this.xm.tickDuration() * (effectParam & 0xf);
   }
@@ -317,13 +313,14 @@ function applyGlobalEffect(when, effectType, effectParam) {
     case 0x10: // set global volume
       this.xm.setVolume(when, effectParam);
       break;
-    case 0x11: // global volume slide
-      var hi = (effectParam >> 4);
-      var lo = (effectParam & 0xf);
-      var upDown = (hi ? true : false);
-      var hiLo = (upDown ? hi : lo);
+    case 0x11: { // global volume slide
+      const hi = (effectParam >> 4);
+      const lo = (effectParam & 0xf);
+      const upDown = (hi ? true : false);
+      const hiLo = (upDown ? hi : lo);
       this.xm.volumeSlide(when, upDown, hiLo);
       break;
+    }
     default:
       /* TODO apply other global effects? */
   }
@@ -334,11 +331,11 @@ function applyEffect(when, effectType, effectParam) {
   // NOTE: this.bs.playbackRate.value might be wrong in the context of the
   // song; we always set this.nextPbr to the value it *should* be at the start
   // of the next row
-  var oldPbr = this.nextPbr;
-  var hi = (effectParam >> 4);
-  var lo = (effectParam & 0xf);
-  var upDown = (hi ? true : false);
-  var hiLo = (upDown ? hi : lo);
+  const oldPbr = this.nextPbr;
+  const hi = (effectParam >> 4);
+  const lo = (effectParam & 0xf);
+  const upDown = (hi ? true : false);
+  const hiLo = (upDown ? hi : lo);
   switch (effectType) {
     case 0x0: // arpeggio
       // theoretically it would be OK if we did this even with effectParam==0,
@@ -347,15 +344,16 @@ function applyEffect(when, effectType, effectParam) {
       if (effectParam != 0) {
 	// three notes: the current note, the high nibble of the parameter
 	// semitones up from that, and the low nibble up from the current note
-	var secondNote = (effectParam >> 4);
-	var thirdNote = (effectParam & 0xf);
-	var pbrs = [
+	const secondNote = (effectParam >> 4);
+	const thirdNote = (effectParam & 0xf);
+	const pbrs = [
 	  oldPbr,
 	  oldPbr * Math.pow(2, secondNote / 12),
 	  oldPbr * Math.pow(2, thirdNote / 12)
 	];
 	// rotate through pbrs for each tick in this row
-	for (var i = 0, t = when;
+	let i, t;
+	for (i = 0, t = when;
 	     i < this.xm.currentTempo; // ticks per row
 	     i++, t += this.xm.tickDuration()) {
 	  this.bs.playbackRate.setValueAtTime(pbrs[i%3], t);
@@ -414,19 +412,20 @@ function applyEffect(when, effectType, effectParam) {
 	  this.portamento(when, (hi == 0x1), lo / this.xm.currentTempo);
 	  break;
 	// 0x3-0x8 TODO
-	case 0x9: // re-trigger note
+	case 0x9: { // re-trigger note
 	  // NOTE: this only handles *re*-triggering the note; if you just have
 	  // this effect on a row without a note, the already-playing note
 	  // won't retrigger on the first tick of that row, only on subsequent
 	  // re-triggering ticks
 	  // lo is the period in ticks between note triggers
-	  var td = this.xm.tickDuration();
-	  for (var tick = lo; tick < this.xm.currentTempo; tick += lo) {
-	    var reWhen = when + tick * td;
+	  const td = this.xm.tickDuration();
+	  for (let tick = lo; tick < this.xm.currentTempo; tick += lo) {
+	    const reWhen = when + tick * td;
 	    // NOTE: instrument==0 preserves current instrument setting
 	    this.triggerNote(reWhen, this.noteNum, 0, 0);
 	  }
 	  break;
+	}
 	case 0xa: // fine volume slide up
 	case 0xb: // fine volume slide down
 	  this.volumeSlide(when, (hi == 0xa), lo / this.xm.currentTempo);
@@ -467,9 +466,9 @@ function applyEffect(when, effectType, effectParam) {
 
 /* Process the volume column of a note. */
 function applyVolume(when, volume) {
-  var oldPbr = this.nextPbr;
-  var hi = (volume >> 4);
-  var lo = (volume & 0xf);
+  const oldPbr = this.nextPbr;
+  const hi = (volume >> 4);
+  const lo = (volume & 0xf);
   switch (hi) {
     case 0x0:
       // do nothing
@@ -511,18 +510,18 @@ function applyVolume(when, volume) {
 },
 
 function portamento(when, up, rate, stopAtPbr) {
-  var oldPbr = this.nextPbr;
-  var pbrFactor = this.xm.portaToPlaybackRateFactor(rate);
-  var newPbr = (up ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
-  var durationFactor = 1;
+  const oldPbr = this.nextPbr;
+  const pbrFactor = this.xm.portaToPlaybackRateFactor(rate);
+  let newPbr = (up ? (oldPbr * pbrFactor) : (oldPbr / pbrFactor));
+  let durationFactor = 1;
   if (stopAtPbr !== undefined &&
       (up ? (newPbr > stopAtPbr) : (newPbr < stopAtPbr))) {
-    var currentPbrFactor = newPbr / oldPbr; // includes effect of up
-    var targetPbrFactor = stopAtPbr / oldPbr;
-    var durationFactor = Math.log(targetPbrFactor) / Math.log(currentPbrFactor);
+    const currentPbrFactor = newPbr / oldPbr; // includes effect of up
+    const targetPbrFactor = stopAtPbr / oldPbr;
+    durationFactor = Math.log(targetPbrFactor) / Math.log(currentPbrFactor);
     newPbr = stopAtPbr;
   }
-  var rowEndTime = when + (this.xm.rowDuration() * durationFactor);
+  const rowEndTime = when + (this.xm.rowDuration() * durationFactor);
   if (this.bs !== undefined) {
     this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
   }
@@ -545,7 +544,7 @@ function setVolume(when, volume) {
   if (when === undefined) { when = actx.currentTime; }
   this.volume = volume;
   if (this.notePhase != 'off') {
-    var volumeFraction = this.getFadeoutVolume(when, volume / 0x40);
+    const volumeFraction = this.getFadeoutVolume(when, volume / 0x40);
     if (when > actx.currentTime) {
       this.volumeNode.gain.setValueAtTime(volumeFraction, when);
     } else {
@@ -553,7 +552,7 @@ function setVolume(when, volume) {
     }
     if (this.notePhase == 'release' && this.instrument.volumeFadeout != 0) {
       // FIXME what if BPM changes?
-      var fadeoutEndTime = // time when volume reaches 0
+      const fadeoutEndTime = // time when volume reaches 0
         when +
         volumeFraction * this.xm.tickDuration() * 0x8000 /
 	this.instrument.volumeFadeout;
@@ -565,9 +564,9 @@ function setVolume(when, volume) {
 /* Slide volume in ±64ths of full volume per tick. */
 function volumeSlide(when, up, rate) {
   // FIXME how does this interact with instrument volume fadeout?
-  var duration = this.xm.rowDuration();
-  var oldVolume = this.volume;
-  var newVolume = oldVolume + (up ? 1 : -1) * rate * this.xm.currentTempo;
+  const duration = this.xm.rowDuration();
+  const oldVolume = this.volume;
+  let newVolume = oldVolume + (up ? 1 : -1) * rate * this.xm.currentTempo;
   // clamp 0-0x40
   if (newVolume < 0) {
     newVolume = 0;
@@ -609,24 +608,26 @@ function setVibratoTremolo(when, which, key, val, dontTrigger) {
       switch (key) {
 	case 'depth':
 	  switch (which) {
-	    case 'vibrato':
+	    case 'vibrato': {
 	      // convert 16ths of a semitone to cents
-	      var gain = val * 100 / 16;
+	      let gain = val * 100 / 16;
 	      if (this.vibrato.type == 4) { // saw down
 		gain = -gain;
 	      }
 	      this.vibratoAmplitudeNode.gain.value = gain;
 	      break;
+	    }
 	    case 'tremolo':
 	      // TODO
 	      break;
 	  }
 	  break;
-	case 'rate':
+	case 'rate': {
 	  // convert 256ths of a cycle per tick to Hz
-	  var freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
+	  const freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
 	  this.vibratoNode.frequency.value = freq;
 	  break;
+	}
 	case 'type':
 	  // TODO
 	  break;
@@ -646,13 +647,13 @@ function setVibratoTremolo(when, which, key, val, dontTrigger) {
 function triggerEnvelope(when, which, firstPoint) {
   if (when < 0) { throw "WTF"; }
   if (firstPoint === undefined) { firstPoint = 0; }
-  var envelope = this.instrument[which + 'Envelope'];
-  var envelopeNode = this[which + 'EnvelopeNode'];
-  var param = (which == 'volume') ? 'gain' : 'pan';
-  for (var i = firstPoint; i < envelope.length; i++) {
+  const envelope = this.instrument[which + 'Envelope'];
+  const envelopeNode = this[which + 'EnvelopeNode'];
+  const param = (which == 'volume') ? 'gain' : 'pan';
+  for (let i = firstPoint; i < envelope.length; i++) {
     // FIXME what if BPM changes? should we only be scheduling the envelope a row at a time?
-    var delay = envelope[i][0] * this.xm.tickDuration();
-    var targetTime = when + delay;
+    const delay = envelope[i][0] * this.xm.tickDuration();
+    const targetTime = when + delay;
     if (targetTime >= actx.currentTime) {
       envelopeNode[param].linearRampToValueAtTime(
         ((which == 'volume') ?
@@ -684,8 +685,8 @@ function retriggerEnvelope(when, which) {
  */
 function loopEnvelope(when, which) {
   if (when < 0) { throw "WTF"; }
-  var loopStartPoint = this.instrument[which + 'LoopStartPoint'];
-  var timeUntilLoopStart =
+  const loopStartPoint = this.instrument[which + 'LoopStartPoint'];
+  const timeUntilLoopStart =
     this.instrument[which + 'Envelope'][loopStartPoint][0] *
     this.xm.tickDuration(); // FIXME what if BPM changes?
   this.triggerEnvelope(when - timeUntilLoopStart, which, loopStartPoint);
@@ -695,16 +696,16 @@ function loopEnvelope(when, which) {
  * phase.
  */
 function releaseEnvelope(when, which) {
-  var envelopeNode = this[which + 'EnvelopeNode'];
+  const envelopeNode = this[which + 'EnvelopeNode'];
   if (envelopeNode !== undefined) {
     // schedule post-sustain part
     // TODO check if loop is (uselessly) entirely before sustain?
     if ((which + 'SustainPoint') in this.instrument) {
-      var sustainPoint = this.instrument[which + 'SustainPoint'];
-      var timeUntilSustain =
+      const sustainPoint = this.instrument[which + 'SustainPoint'];
+      const timeUntilSustain =
         this.instrument[which + 'Envelope'][sustainPoint][0] *
 	this.xm.tickDuration(); // FIXME what if BPM changes?
-      var sustainTime = this.lastTriggerTime + timeUntilSustain;
+      const sustainTime = this.lastTriggerTime + timeUntilSustain;
       if (when > sustainTime) {
 	this.triggerEnvelope(when - timeUntilSustain, which, sustainPoint);
       } else {
@@ -716,7 +717,7 @@ function releaseEnvelope(when, which) {
 
 /* Stop using volume/panning envelope (no release phase). */
 function cutEnvelope(when, which) {
-  var envelopeNode = this[which + 'EnvelopeNode'];
+  const envelopeNode = this[which + 'EnvelopeNode'];
   if (envelopeNode !== undefined) {
     envelopeNode[(which == 'volume') ? 'gain' : 'pan']. // FIXME ugh
       cancelScheduledValues(when);
@@ -733,11 +734,11 @@ function triggerVibrato(when) {
   this.vibrato.on = true;
   this.vibratoAmplitudeNode = actx.createGain();
   this.vibratoAmplitudeNode.connect(this.bs.detune);
-  var gain = this.vibrato.depth * 16 / 100; // cents
+  let gain = this.vibrato.depth * 16 / 100; // cents
   this.vibratoNode = actx.createOscillator();
   this.vibratoNode.connect(this.vibratoAmplitudeNode);
   // convert 256ths of a cycle per tick to Hz
-  var freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
+  const freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
   this.vibratoNode.frequency.value = freq;
   switch (this.vibrato.type) {
     case 0:
@@ -758,7 +759,7 @@ function triggerVibrato(when) {
   if (this.vibrato.sweep == 0) {
     this.vibratoAmplitudeNode.gain.value = gain;
   } else {
-    var sweepEndTime = when + this.vibrato.sweep * this.xm.tickDuration();
+    const sweepEndTime = when + this.vibrato.sweep * this.xm.tickDuration();
     this.vibratoAmplitudeNode.gain.value = 0;
     this.vibratoAmplitudeNode.gain.linearRampToValueAtTime(gain, sweepEndTime);
   }

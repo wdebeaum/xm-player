@@ -6,18 +6,18 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
 }
 
 /* exported actx,maxVolume,showPatternsInput */
-var actx;
-var maxVolume = 0.2;
+let actx;
+const maxVolume = 0.2;
 // HTML elements
-var showPatternsInput;
-var xmUrlInput;
-var songDiv;
+let showPatternsInput;
+let xmUrlInput;
+let songDiv;
 /* exported songTable,patternOrderDiv,patternsDiv,instrumentsDiv,rowHighlight */
-var songTable;
-var patternOrderDiv;
-var patternsDiv;
-var instrumentsDiv;
-var rowHighlight;
+let songTable;
+let patternOrderDiv;
+let patternsDiv;
+let instrumentsDiv;
+let rowHighlight;
 function onBodyLoad() {
   actx = new AudioContext();
   showPatternsInput = document.getElementById('show-patterns');
@@ -29,16 +29,15 @@ function onBodyLoad() {
   instrumentsDiv = document.getElementById('instruments');
   rowHighlight = document.getElementById('row-highlight');
   if (location.hash !== '') {
-    var url = location.hash.slice(1); // remove # from beginning
+    const url = location.hash.slice(1); // remove # from beginning
     fetchUrlAndRead(url);
   }
 }
 
 function highlightAndCenterRow(patternIndex, rowIndex) {
-  var rowID = 'pattern-' + patternIndex + '-row-' + rowIndex;
+  const rowID = 'pattern-' + patternIndex + '-row-' + rowIndex;
   // scroll the row to the center of the view
-  var rowElement =
-    document.getElementById(rowID);
+  const rowElement = document.getElementById(rowID);
   rowElement.scrollIntoView(true);
   scrollBy(0,
     -(document.documentElement.clientHeight - rowElement.clientHeight) / 2);
@@ -47,7 +46,7 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
 }
 
 /* exported stopPlease,stopPlaying,xm */
-var stopPlease = false;
+let stopPlease = false;
 
 function stopPlaying() {
   // set stopPlease to make sure onended callbacks don't start new stuff
@@ -57,7 +56,7 @@ function stopPlaying() {
   setTimeout(function() { stopPlease = false; }, 500);
 }
 
-var xm;
+let xm;
 
 function clearSong() {
   songDiv.style.display = 'none';
@@ -83,7 +82,7 @@ function readFile(file) {
 
 function fetchUrlAndRead(url) {
   console.log('fetching XM file from URL: ' + url);
-  var xhr = new XMLHttpRequest();
+  const xhr = new XMLHttpRequest();
   xhr.open('GET', url, true);
   xhr.responseType = 'blob';
   xhr.onreadystatechange = function() {
