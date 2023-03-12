@@ -13,7 +13,7 @@
 	"tabWidth": 8,
 	"ignoreStrings": true,
 	"ignoreTemplateLiterals": true,
-	"ignorePattern": "TODO|FIXME"
+	"ignorePattern": "TODO|FIXME|https?://"
       }
     ],
     "no-var": "error",

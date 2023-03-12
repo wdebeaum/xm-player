@@ -11,7 +11,7 @@ if (!('copyToChannel' in AudioBuffer.prototype)) {
     for (var i = 0; i < source.length; i++) {
       d[i] = source[i];
     }
-  }
+  };
 }
 
 /* exported sampleDataToBufferSource */
@@ -40,7 +40,7 @@ function once(fn) {
       first = false;
       return fn(...args);
     }
-  }
+  };
 }
 
 // call fn(startTime+delay) at time startTime+delay, or immediately if that has
@@ -152,7 +152,8 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     return;
   }
   if ('sampleNumberForAllNotes' in this.instrument) {
-    this.sample = this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
+    this.sample =
+      this.instrument.samples[this.instrument.sampleNumberForAllNotes[noteNum]];
   } else {
     this.sample = this.instrument.samples[0];
   }
@@ -162,9 +163,11 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     return;
   }
   this.nextPbr =
-    computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
+    computePlaybackRate(noteNum, this.sample.relativeNoteNumber,
+			this.sample.finetune);
   this.targetPbr = this.nextPbr;
-  var vibratoOn = (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
+  var vibratoOn =
+    (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
   this.vibrato.type = this.instrument.vibratoType;
   this.vibrato.sweep = this.instrument.vibratoSweep;
   this.vibrato.depth = this.instrument.vibratoDepth;
@@ -188,12 +191,19 @@ function triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
       downstream = this.panningEnvelopeNode;
     }
   }
-  this.bs = sampleDataToBufferSource(this.sample.data, this.sample.bytesPerSample);
+  this.bs =
+    sampleDataToBufferSource(this.sample.data, this.sample.bytesPerSample);
   if (this.sample.loopType) {
     // TODO ping-pong
     this.bs.loop = true;
-    this.bs.loopStart = this.sample.loopStart / this.sample.bytesPerSample / 44100;
-    this.bs.loopEnd = (this.sample.loopStart + this.sample.loopLength) / this.sample.bytesPerSample / 44100;
+    this.bs.loopStart =
+      this.sample.loopStart /
+      this.sample.bytesPerSample /
+      44100;
+    this.bs.loopEnd =
+      (this.sample.loopStart + this.sample.loopLength) /
+      this.sample.bytesPerSample /
+      44100;
   }
   this.bs.connect(downstream);
   // NOTE: Vibrato nodes are created in triggerVibrato since that can happen at
@@ -227,7 +237,8 @@ function releaseNote(when) {
     this.setVolume(when, this.volume); // start fadeout if necessary
     this.releaseEnvelope(when, 'volume');
     this.releaseEnvelope(when, 'panning');
-  } else { // no fadeout, no volume envelope, just cut the note so it doesn't go on forever
+  } else { // no fadeout, no volume envelope
+    // just cut the note so it doesn't go on forever
     this.cutNote(when);
   }
 },
@@ -269,7 +280,8 @@ function applyCommand(when, note) {
     // portamento to note, don't trigger a new note
     if (noteNum > 0 && noteNum <= maxNoteNum && this.notePhase != 'off') {
       this.targetPbr =
-	computePlaybackRate(noteNum, this.sample.relativeNoteNumber, this.sample.finetune);
+	computePlaybackRate(noteNum, this.sample.relativeNoteNumber,
+			    this.sample.finetune);
       this.setVolume(when, this.sample.volume);
       // FIXME!!! this is an attempted solution to extended 3xx portamento not playing with a short envelope... it's almost right, but still sounds off, and occasionally still drops notes
       if ('volumeEnvelope' in this.instrument) {
@@ -358,7 +370,8 @@ function applyEffect(when, effectType, effectParam) {
       break;
     case 0x3: // porta towards note
       if (effectParam > 0) { this.portamentoRate = effectParam; }
-      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
+      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate,
+		      this.targetPbr);
       break;
     case 0x4: // vibrato
       // note: these triggerVibrato automatically if appropriate
@@ -366,7 +379,8 @@ function applyEffect(when, effectType, effectParam) {
       if (hi > 0) { this.setVibratoTremolo(when, 'vibrato', 'rate', (hi << 2));}
       break;
     case 0x5: // porta towards note and volume slide
-      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
+      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate,
+		      this.targetPbr);
       this.volumeSlide(when, upDown, hiLo);
       break;
     case 0x6: // vibrato and volume slide
@@ -441,7 +455,8 @@ function applyEffect(when, effectType, effectParam) {
       switch (hi) {
 	case 0x1: // fine porta up
 	case 0x2: // fine porta down
-	  this.portamento(when, (hi == 0x1), lo / (0x40 * this.xm.currentTempo));
+	  this.portamento(when, (hi == 0x1),
+			  lo / (0x40 * this.xm.currentTempo));
 	  break;
        }
        break;
@@ -482,14 +497,15 @@ function applyVolume(when, volume) {
       break;
     case 0xc: // set panning
       this.setPanning(when, (lo << 4));
-      break
+      break;
     case 0xd: // panning slide left
     case 0xe: // panning slide right
       // TODO
       break;
     case 0xf: // portamento towards note
       if (lo > 0) { this.portamentoRate = (lo << 4); }
-      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate, this.targetPbr);
+      this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate,
+		      this.targetPbr);
       break;
   }
 },

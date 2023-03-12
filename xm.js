@@ -7,7 +7,7 @@ var vibratoTypes = ['sine', 'square', 'saw down', 'saw up'];
 var loopTypes = ['none', 'forward', 'ping-pong'];
 
 if (!String.prototype.encodeHTML) {
-  String.prototype.encodeHTML = function () {
+  String.prototype.encodeHTML = function() {
     return this.replace(/&/g, '&amp;')
                .replace(/</g, '&lt;')
                .replace(/>/g, '&gt;')
@@ -162,7 +162,8 @@ function readSongHeader() {
   this.currentTempo = this.defaultTempo;
   this.defaultBPM = r.readUint16();
   this.currentBPM = this.defaultBPM;
-  this.patternOrder = r.readIntegers(256, false, 1, true).slice(0,this.songLength);
+  this.patternOrder =
+    r.readIntegers(256, false, 1, true).slice(0,this.songLength);
 },
 
 function drawSongHeader() {
@@ -230,7 +231,7 @@ function readPattern(pi) {
       }
       for (var x = 1; x < 5; x++) {
 	if (col & (1 << x)) {
-	  var cell = packedPatternData[pdi++]
+	  var cell = packedPatternData[pdi++];
 	  note.push(cell);
 	} else {
 	  note.push(0);
@@ -263,9 +264,11 @@ function readPattern(pi) {
 function drawPattern(pi) {
   appendHeading(patternsDiv, 3, 'Pattern ' + pi);
   appendButton(patternsDiv, '▶',
-      this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, false, undefined));
+    this.playPattern.bind(this,
+      this.patterns[pi], pi, 0, undefined, false, undefined));
   appendButton(patternsDiv, '↺',
-      this.playPattern.bind(this, this.patterns[pi], pi, 0, undefined, true, undefined));
+    this.playPattern.bind(this,
+      this.patterns[pi], pi, 0, undefined, true, undefined));
   appendBreak(patternsDiv);
   var table = '<tr><th title="row number">Rw</th>';
   var ci;
@@ -324,6 +327,8 @@ function readInstrument() {
   ret.numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
     var sampleHeaderSize = r.readUint32();
+    if (sampleHeaderSize != 40)
+      console.warn(`expected sample header size field to be 40, but got ${sampleHeaderSize}`);
     ret.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
     // volume and panning envelopes
     var pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
@@ -347,7 +352,7 @@ function readInstrument() {
     ret.vibratoRate = r.readUint8();
     // other
     ret.volumeFadeout = r.readUint16();
-    var reserved = r.readUint16();
+    /*var reserved = */r.readUint16();
     if (instrumentHeaderSize > 243) {
       var count = instrumentHeaderSize - 243;
       console.log('WARNING: ignoring ' + count + ' extra bytes after first 243 bytes of instrument header');
@@ -384,7 +389,8 @@ function drawInstrument(ii) {
   }
   this.drawVolumePanning(ret, 'volume');
   this.drawVolumePanning(ret, 'panning');
-  if (ret.vibratoType || ret.vibratoSweep || ret.vibratoDepth || ret.vibratoRate) {
+  if (ret.vibratoType || ret.vibratoSweep ||
+      ret.vibratoDepth || ret.vibratoRate) {
     appendLine(instrumentsDiv, 'Vibrato: ' + vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
   }
   if (ret.volumeFadeout > 0) {
@@ -397,7 +403,10 @@ function drawInstrument(ii) {
   }
 },
 
-function interpretVolumePanning(ret, volumeOrPanning, points, numberOfPoints, sustainPoint, loopStartPoint, loopEndPoint, type) {
+function interpretVolumePanning(
+  ret, volumeOrPanning, points, numberOfPoints,
+  sustainPoint, loopStartPoint, loopEndPoint, type
+) {
   if (type & 1) { // On
     var envelope = ret[volumeOrPanning + 'Envelope'] = [];
     for (var i = 0; i < numberOfPoints; i++) {
@@ -460,7 +469,7 @@ function readSampleHeader() {
   s.bytesPerSample = ((type & (1<<4)) ? 2 : 1);
   s.panning = r.readUint8();
   s.relativeNoteNumber = r.readIntegers(1, true, 1, true)[0];
-  var reserved = r.readUint8();
+  /*var reserved = */r.readUint8();
   s.name = r.readZeroPaddedString(22);
   return s;
 },
@@ -483,7 +492,8 @@ function drawSampleHeader(s) {
 },
 
 function readSampleData(s) {
-  var deltas = this.binaryReader.readIntegers(s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
+  var deltas = this.binaryReader.readIntegers(
+    s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
   s.data = [];
   var maxint = (1 << (8*s.bytesPerSample));
   var maxsint = (maxint>>1)-1;
@@ -517,7 +527,8 @@ function drawSampleData(s) {
   var min = 256;
   var max = 0;
   for (var i = 0; i < s.data.length; i++) {
-    var scaled = 128 + ((s.bytesPerSample == 2) ? Math.trunc(s.data[i]/256) : s.data[i]);
+    var scaled =
+      128 + ((s.bytesPerSample == 2) ? Math.trunc(s.data[i]/256) : s.data[i]);
     if (scaled < min) { min = scaled; }
     if (scaled > max) { max = scaled; }
     if ((i % horizDivisor) == 0) {
@@ -532,7 +543,8 @@ function drawSampleData(s) {
     function() {
       var bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
       // TODO apply sample volume (0-64), panning (left 0 - right 255)
-      bs.playbackRate = computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
+      bs.playbackRate =
+	computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
       bs.connect(xm.masterVolume);
       bs.start();
     }
@@ -598,7 +610,9 @@ function rowDuration() {
   return this.currentTempo * this.tickDuration();
 },
 
-function playPattern(pattern, patternIndex, startRow, onEnded, loop, startTime) {
+function playPattern(
+  pattern, patternIndex, startRow, onEnded, loop, startTime
+) {
   if (stopPlease) {
     // stop showing row highlight
     if (showPatternsInput.checked) { rowHighlight.style.display = 'none'; }
@@ -620,7 +634,9 @@ function playPattern(pattern, patternIndex, startRow, onEnded, loop, startTime) 
     // delay one row (in seconds)
     var delay = this.rowDuration();
     // recurse on next row
-    afterDelay(startTime, delay, this.playPattern.bind(this, pattern, patternIndex, startRow+1, onEnded, loop));
+    afterDelay(startTime, delay,
+      this.playPattern.bind(this,
+        pattern, patternIndex, startRow+1, onEnded, loop));
   } else if (loop) {
     this.playPattern(pattern, patternIndex, 0, onEnded, loop, startTime);
   } else { // after last row
@@ -635,7 +651,7 @@ function playPattern(pattern, patternIndex, startRow, onEnded, loop, startTime) 
 function stopAllChannels() {
   this.nextSongPosition = undefined;
   this.nextPatternStartRow = undefined;
-  this.channels.forEach(function(c) { c.cutNote() });
+  this.channels.forEach(function(c) { c.cutNote(); });
 },
 
 function playSong(startIndex, onEnded, loop) {

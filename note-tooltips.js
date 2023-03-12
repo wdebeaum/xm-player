@@ -22,7 +22,7 @@ function noteTooltips(note) {
     switch (note[3]) {
       case 0x00:
         if (note[4]) {
-	  return 'arpeggio: rotate pitch once per tick in this row, among the original, ' + hi + ' semitones up, and ' + lo + ' semitones up'
+	  return 'arpeggio: rotate pitch once per tick in this row, among the original, ' + hi + ' semitones up, and ' + lo + ' semitones up';
 	} else {
 	  return undefined;
 	}

@@ -1,16 +1,18 @@
 // FIXME assumes linear frequency table
 function computePlaybackRate(noteNum, relNoteNum, fineTune) {
   // this is different from the formula in the spec, but is more readable
-  return Math.pow(2, (noteNum - 1 + relNoteNum - 48/*C-4*/ + fineTune/128)/12) * 8363 / 44100;
+  return Math.pow(2, (noteNum - 1 + relNoteNum - 48/*C-4*/ + fineTune/128)/12) *
+	 8363 / 44100;
 }
 
-/* exported actx,maxVolume,showPatternsInput,songTable,patternOrderDiv,patternsDiv,instrumentsDiv,rowHighlight */
+/* exported actx,maxVolume,showPatternsInput */
 var actx;
 var maxVolume = 0.2;
 // HTML elements
 var showPatternsInput;
 var xmUrlInput;
 var songDiv;
+/* exported songTable,patternOrderDiv,patternsDiv,instrumentsDiv,rowHighlight */
 var songTable;
 var patternOrderDiv;
 var patternsDiv;
@@ -38,7 +40,8 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
   var rowElement =
     document.getElementById(rowID);
   rowElement.scrollIntoView(true);
-  scrollBy(0, -(document.documentElement.clientHeight - rowElement.clientHeight) / 2);
+  scrollBy(0,
+    -(document.documentElement.clientHeight - rowElement.clientHeight) / 2);
   // make sure it's highlighted (not 'display: none')
   rowHighlight.style.display = '';
 }
@@ -75,7 +78,7 @@ function readFile(file) {
     xm.drawSong();
     console.log("successfully loaded file");
     songDiv.style.display = '';
-  }
+  };
 }
 
 function fetchUrlAndRead(url) {
@@ -88,7 +91,7 @@ function fetchUrlAndRead(url) {
       console.log('fetched, reading');
       readFile(xhr.response);
     } // TODO handle HTTP errors
-  }
+  };
   xhr.send();
 }
 
