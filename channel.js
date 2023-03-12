@@ -50,7 +50,7 @@ function afterDelay(startTime, delay, fn) {
   const endTime = startTime + delay;
   if (actx.currentTime >= endTime) {
     if (actx.currentTime > lastLag + 10) {
-      console.log('WARNING: lag');
+      console.warn('lag');
       lastLag = actx.currentTime;
     }
     // Instead of actually calling fn(endTime) immediately, let this function
@@ -754,7 +754,7 @@ function triggerVibrato(when) {
       this.vibratoNode.type = "sawtooth";
       break;
     default:
-      console.log('WARNING: bogus vibrato type ' + this.vibrato.type);
+      console.warn('bogus vibrato type ' + this.vibrato.type);
   }
   if (this.vibrato.sweep == 0) {
     this.vibratoAmplitudeNode.gain.value = gain;

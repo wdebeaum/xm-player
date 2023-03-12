@@ -196,12 +196,12 @@ function drawSongHeader() {
 function readPattern(pi) {
   const r = this.binaryReader;
   const patternHeaderLength = r.readUint32();
-  if (patternHeaderLength != 9) { console.log('WARNING: wrong pattern header length; expected 9 but got ' + patternHeaderLength); }
+  if (patternHeaderLength != 9) { console.warn('wrong pattern header length; expected 9 but got ' + patternHeaderLength); }
   const packingType = r.readUint8();
-  if (packingType != 0) { console.log('WARNING: wrong packing type; expected 0 but got 0x' + packingType.toString(16)); }
+  if (packingType != 0) { console.warn('wrong packing type; expected 0 but got 0x' + packingType.toString(16)); }
   const numberOfRows = r.readUint16();
-  if (numberOfRows == 0) { console.log('WARNING: no rows'); }
-  if (numberOfRows > 256) { console.log('WARNING: too many rows; expected <=256 but got ' + numberOfRows); }
+  if (numberOfRows == 0) { console.warn('no rows'); }
+  if (numberOfRows > 256) { console.warn('too many rows; expected <=256 but got ' + numberOfRows); }
   const packedPatternDataSize = r.readUint16();
   const packedPatternData =
     r.readIntegers(packedPatternDataSize, false, 1, true);
@@ -254,10 +254,10 @@ function readPattern(pi) {
   }
   if (actualNumberOfRows > 0 && // blank patterns are omitted
       actualNumberOfRows != numberOfRows) {
-    console.log('WARNING: wrong number of rows; expected ' + numberOfRows + ' but got ' + actualNumberOfRows);
+    console.warn('wrong number of rows; expected ' + numberOfRows + ' but got ' + actualNumberOfRows);
   }
   if (ci != 0) {
-    console.log('WARNING: number of notes not divisible by number of channels; remainder=' + ci);
+    console.warn('number of notes not divisible by number of channels; remainder=' + ci);
   }
 },
 
@@ -319,11 +319,11 @@ function readInstrument() {
   const ret = {};
   const instrumentHeaderSize = r.readUint32();
   if (instrumentHeaderSize < 29) {
-    console.log('WARNING: instrument header size too small; expected >=29 but got ' + instrumentHeaderSize);
+    console.warn('instrument header size too small; expected >=29 but got ' + instrumentHeaderSize);
   }
   ret.name = r.readZeroPaddedString(22);
   const instrumentType = r.readUint8();
-  if (instrumentType != 0) { console.log('WARNING: wrong instrument type; expected 0 but got 0x' + instrumentType.toString(16)); }
+  if (instrumentType != 0) { console.warn('wrong instrument type; expected 0 but got 0x' + instrumentType.toString(16)); }
   ret.numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
     const sampleHeaderSize = r.readUint32();
@@ -356,12 +356,12 @@ function readInstrument() {
     /*const reserved = */r.readUint16();
     if (instrumentHeaderSize > 243) {
       const count = instrumentHeaderSize - 243;
-      console.log('WARNING: ignoring ' + count + ' extra bytes after first 243 bytes of instrument header');
+      console.warn('ignoring ' + count + ' extra bytes after first 243 bytes of instrument header');
       r.readIntegers(count, false, 1, true);
     }
   } else if (instrumentHeaderSize > 29) {
     const count = instrumentHeaderSize - 29;
-    console.log('WARNING: ignoring ' + count + ' extra bytes after first 29 bytes of instrument header');
+    console.warn('ignoring ' + count + ' extra bytes after first 29 bytes of instrument header');
     r.readIntegers(count, false, 1, true);
   }
   ret.samples = [];
