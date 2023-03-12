@@ -39,7 +39,7 @@
     // rules I *almost* like :(
     "no-redeclare": "off" // interferes with "exports" via script tags in same html file, see globals below
     //"arrow-parens": ["error", "as-needed"], // conflicts with no-confusing-arrow
-    //"prefer-template": "error", // breaks when I use the ''+ idiom to ensure stringhood
+    //"prefer-template": "error", // when it's just one literal string concatenated with some other expression(s), I prefer using +, but there's no way to tell this rule that
     //"brace-style": ["error", "1tbs"], // this breaks when I break long conditions in an if across multiple lines
   },
   "globals": {

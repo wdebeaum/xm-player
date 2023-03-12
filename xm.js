@@ -167,27 +167,16 @@ function readSongHeader() {
 
 function drawSongHeader() {
   songTable.innerHTML +=
-    '<tr><td>Module name:</td><td>' +
-      this.moduleName.encodeHTML() + '</td></tr>' +
-    '<tr><td>Tracker name:</td><td>' +
-      this.trackerName.encodeHTML() + '</td></tr>' +
-    '<tr><td>Song length:</td><td>' +
-      this.songLength + ' patterns<td></tr>' +
-    '<tr><td>Restart position:</td><td>pattern ' +
-      this.restartPosition + ' in pattern order</td></tr>' +
-    '<tr><td>Number of channels:</td><td>' +
-      this.numberOfChannels + '</td></tr>' +
-    '<tr><td>Number of patterns:</td><td>' +
-      this.numberOfPatterns + '</td></tr>' +
-    '<tr><td>Number of instruments:</td><td>' +
-      this.numberOfInstruments + '</td></tr>' +
-    '<tr><td>Frequency table:</td><td>' +
-      ((this.flags & 1) ? 'Linear' : 'Amiga') + '</td></tr>' +
-    '<tr><td>Default tempo:</td><td>' +
-      this.defaultTempo + ' ticks per row<td></tr>' +
-    '<tr><td>Default BPM:</td><td>' +
-      this.defaultBPM +
-      ' (' + (this.defaultBPM/2.5) + ' ticks per second)<td></tr>';
+    `<tr><td>Module name:</td><td>${this.moduleName.encodeHTML()}</td></tr>` +
+    `<tr><td>Tracker name:</td><td>${this.trackerName.encodeHTML()}</td></tr>` +
+    `<tr><td>Song length:</td><td>${this.songLength} patterns<td></tr>` +
+    `<tr><td>Restart position:</td><td>pattern ${this.restartPosition} in pattern order</td></tr>` +
+    `<tr><td>Number of channels:</td><td>${this.numberOfChannels}</td></tr>` +
+    `<tr><td>Number of patterns:</td><td>${this.numberOfPatterns}</td></tr>` +
+    `<tr><td>Number of instruments:</td><td>${this.numberOfInstruments}</td></tr>` +
+    `<tr><td>Frequency table:</td><td>${(this.flags & 1) ? 'Linear' : 'Amiga'}</td></tr>` +
+    `<tr><td>Default tempo:</td><td>${this.defaultTempo} ticks per row<td></tr>` +
+    `<tr><td>Default BPM:</td><td>${this.defaultBPM} (${this.defaultBPM/2.5} ticks per second)<td></tr>`;
   for (let i = 0; i < this.songLength; i++) {
     patternOrderDiv.innerHTML += ((i==0) ? '' : ', ') + this.patternOrder[i];
   }
@@ -254,7 +243,7 @@ function readPattern(pi) {
   }
   if (actualNumberOfRows > 0 && // blank patterns are omitted
       actualNumberOfRows != numberOfRows) {
-    console.warn('wrong number of rows; expected ' + numberOfRows + ' but got ' + actualNumberOfRows);
+    console.warn(`wrong number of rows; expected ${numberOfRows} but got ${actualNumberOfRows}`);
   }
   if (ci != 0) {
     console.warn('number of notes not divisible by number of channels; remainder=' + ci);
@@ -278,7 +267,7 @@ function drawPattern(pi) {
   table += '</tr>';
   for (let ri = 0; ri < this.patterns[pi].length; ri++) {
     const row = this.patterns[pi][ri];
-    table += '<tr id="pattern-' + pi + '-row-' + ri + '" class="row-' + (ri % 8) + '"><td class="row-num">' + ri.toString(16) + '</td>';
+    table += `<tr id="pattern-${pi}-row-${ri}" class="row-${ri % 8}"><td class="row-num">${ri.toString(16)}</td>`;
     for (let ci = 0; ci < row.length; ci++) {
       const note = row[ci];
       // get tooltips
@@ -288,21 +277,20 @@ function drawPattern(pi) {
 	if (tooltips[i] === undefined) {
 	  tooltips[i] = '';
 	} else {
-	  tooltips[i] = ' title="' + tooltips[i] + '"';
+	  tooltips[i] = ` title="${tooltips[i]}"`;
 	}
       }
       // write table cells for note
       table +=
-	'<td class="note"' + tooltips[0] + '>' +
-	  noteNumberToName(note[0]) + '</td>' +
-	'<td class="col-1"' + tooltips[1] + '>' +
-	  ((note[1] == 0) ? '··' : note[1].toString(16)) + '</td>' +
-	'<td class="col-2"' + tooltips[2] + '>' +
-	  formatVolume(note[2]) + '</td>' +
-	'<td class="col-3"' + tooltips[3] + '>' +
+	`<td class="note"${tooltips[0]}>${noteNumberToName(note[0])}</td>` +
+	`<td class="col-1"${tooltips[1]}>` +
+	  ((note[1] == 0) ? '··' : note[1].toString(16)) +
+	'</td>' +
+	`<td class="col-2"${tooltips[2]}>${formatVolume(note[2])}</td>` +
+	`<td class="col-3"${tooltips[3]}>` +
 	  ((note[3] == 0 && note[4] == 0) ? '·' : note[3].toString(36)) +
 	'</td>' +
-	'<td class="col-4"' + tooltips[4] + '>' +
+	`<td class="col-4"${tooltips[4]}>` +
 	  ((note[3] == 0 && note[4] == 0) ? '··' :
 	    ((note[4] < 0x10) ? '0' : '') + note[4].toString(16)) +
 	'</td>';
@@ -328,7 +316,7 @@ function readInstrument() {
   if (instrumentHeaderSize >= 243) {
     const sampleHeaderSize = r.readUint32();
     if (sampleHeaderSize != 40) {
-      console.warn(`expected sample header size field to be 40, but got ${sampleHeaderSize}`);
+      console.warn('wrong sample header size; expected 40, but got ' + sampleHeaderSize);
     }
     ret.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
     // volume and panning envelopes
@@ -356,12 +344,12 @@ function readInstrument() {
     /*const reserved = */r.readUint16();
     if (instrumentHeaderSize > 243) {
       const count = instrumentHeaderSize - 243;
-      console.warn('ignoring ' + count + ' extra bytes after first 243 bytes of instrument header');
+      console.warn(`ignoring ${count} extra bytes after first 243 bytes of instrument header`);
       r.readIntegers(count, false, 1, true);
     }
   } else if (instrumentHeaderSize > 29) {
     const count = instrumentHeaderSize - 29;
-    console.warn('ignoring ' + count + ' extra bytes after first 29 bytes of instrument header');
+    console.warn(`ignoring ${count} extra bytes after first 29 bytes of instrument header`);
     r.readIntegers(count, false, 1, true);
   }
   ret.samples = [];
@@ -392,10 +380,10 @@ function drawInstrument(ii) {
   this.drawVolumePanning(ret, 'panning');
   if (ret.vibratoType || ret.vibratoSweep ||
       ret.vibratoDepth || ret.vibratoRate) {
-    appendLine(instrumentsDiv, 'Vibrato: ' + vibratoTypes[ret.vibratoType] + '(sweep=reach full depth at ' + ret.vibratoSweep + ' ticks after vibrato start; depth = ±' + ret.vibratoDepth + ' / 16 semitones; rate=' + ret.vibratoRate + ' / 256 cycles per tick)');
+    appendLine(instrumentsDiv, `Vibrato: ${vibratoTypes[ret.vibratoType]}(sweep=reach full depth at ${ret.vibratoSweep} ticks after vibrato start; depth = ±${ret.vibratoDepth} / 16 semitones; rate=${ret.vibratoRate} / 256 cycles per tick)`);
   }
   if (ret.volumeFadeout > 0) {
-    appendLine(instrumentsDiv, 'Volume fadeout: reduce volume by ' + ret.volumeFadeout + ' / 32768 of what its full volume would be otherwise, per tick after note release');
+    appendLine(instrumentsDiv, `Volume fadeout: reduce volume by ${ret.volumeFadeout} / 32768 of what its full volume would be otherwise, per tick after note release`);
   }
   for (let si = 0; si < ret.numberOfSamples; si++) {
     appendHeading(instrumentsDiv, 4, 'Sample ' + si);
@@ -452,7 +440,7 @@ function drawVolumePanning(ret, volumeOrPanning) {
       appendLine(instrumentsDiv, 'Sustain point: ' + ret[volumeOrPanning + 'SustainPoint']);
     }
     if ((volumeOrPanning + 'LoopStartPoint') in ret) { // Loop
-      appendLine(instrumentsDiv, 'Loop: ' + ret[volumeOrPanning + 'LoopStartPoint'] + '-' + ret[volumeOrPanning + 'LoopEndPoint']);
+      appendLine(instrumentsDiv, `Loop: ${ret[volumeOrPanning + 'LoopStartPoint']}-${ret[volumeOrPanning + 'LoopEndPoint']}`);
     }
   }
 },
@@ -479,17 +467,17 @@ function drawSampleHeader(s) {
   const table = document.createElement('table');
   instrumentsDiv.appendChild(table);
   table.innerHTML =
-    '<tr><td>Name:</td><td>' + s.name + '</td></tr>' +
-    '<tr><td>Relative note number:</td><td>' + s.relativeNoteNumber + ' semitones</td></tr>' +
-    '<tr><td>Finetune:</td><td>' + s.finetune + ' / 128 semitones</td></tr>' +
-    '<tr><td>Volume:</td><td>' + s.volume + ' / 64</td></tr>' +
-    '<tr><td>Panning:</td><td>' + s.panning + ' / 255 right</td></tr>';
+    `<tr><td>Name:</td><td>${s.name}</td></tr>` +
+    `<tr><td>Relative note number:</td><td>${s.relativeNoteNumber} semitones</td></tr>` +
+    `<tr><td>Finetune:</td><td>${s.finetune} / 128 semitones</td></tr>` +
+    `<tr><td>Volume:</td><td>${s.volume} / 64</td></tr>` +
+    `<tr><td>Panning:</td><td>${s.panning} / 255 right</td></tr>`;
   if (s.loopType) {
     table.innerHTML +=
-      '<tr><td>Loop:</td><td>' + loopTypes[s.loopType] + ' ' + s.loopStart + ' bytes - ' + (s.loopLength + s.loopStart) + ' bytes</td></tr>';
+      `<tr><td>Loop:</td><td>${loopTypes[s.loopType]} ${s.loopStart} bytes - ${(s.loopLength + s.loopStart)} bytes</td></tr>`;
   }
   table.innerHTML +=
-    '<tr><td>Length:</td><td>' + s.lengthInBytes + ' bytes (' + s.bytesPerSample + ' byte(s) per sample)</td></tr>';
+    `<tr><td>Length:</td><td>${s.lengthInBytes} bytes (${s.bytesPerSample} byte(s) per sample)</td></tr>`;
 },
 
 function readSampleData(s) {

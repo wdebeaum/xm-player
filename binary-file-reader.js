@@ -14,9 +14,9 @@ function BinaryFileReader(file) {
 [ // begin BinaryFileReader methods
 
 function readIntegers(count, signed, bytes, littleEndian) {
-  const getter = 'get' + (signed ? 'Int' : 'Uint') + (bytes*8);
+  const getter = `get${(signed ? 'Int' : 'Uint')}${bytes*8}`;
   const ret = []; // TODO make this a typed array?
-  //console.log(getter + ' * ' + count);
+  //console.log(`${getter} * ${count}`);
   while (count--) {
     ret.push(this.data[getter](this.pos, littleEndian));
     this.pos += bytes;

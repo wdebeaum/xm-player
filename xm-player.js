@@ -35,7 +35,7 @@ function onBodyLoad() {
 }
 
 function highlightAndCenterRow(patternIndex, rowIndex) {
-  const rowID = 'pattern-' + patternIndex + '-row-' + rowIndex;
+  const rowID = `pattern-${patternIndex}-row-${rowIndex}`;
   // scroll the row to the center of the view
   const rowElement = document.getElementById(rowID);
   rowElement.scrollIntoView(true);
