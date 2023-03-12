@@ -14,6 +14,7 @@ if (!('copyToChannel' in AudioBuffer.prototype)) {
   }
 }
 
+/* exported sampleDataToBufferSource */
 function sampleDataToBufferSource(data, bytesPerSample) {
   var bs = actx.createBufferSource();
   var buffer = actx.createBuffer(1, (data.length || 1), 44100);
@@ -44,6 +45,7 @@ function once(fn) {
 
 // call fn(startTime+delay) at time startTime+delay, or immediately if that has
 // already passed. Return a function that can be used to cancel calling fn.
+/* exported afterDelay */
 function afterDelay(startTime, delay, fn) {
   var endTime = startTime + delay;
   if (actx.currentTime >= endTime) {
@@ -81,6 +83,7 @@ function afterDelay(startTime, delay, fn) {
 var maxNoteNum = 95;
 
 /* One channel/track as it plays notes. */
+/* exported Channel */
 function Channel(xm) {
   this.xm = xm;
   this.reset();

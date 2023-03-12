@@ -1,0 +1,75 @@
+{
+  "extends": "eslint:recommended",
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "rules": {
+    "indent": "off",
+    "no-mixed-spaces-and-tabs": "off",
+    "max-len": [
+      "error",
+      {
+	"tabWidth": 8,
+	"ignoreStrings": true,
+	"ignoreTemplateLiterals": true,
+	"ignorePattern": "TODO|FIXME"
+      }
+    ],
+    "no-var": "error",
+    "no-unused-vars": ["error", { "vars": "local", "args": "none" }],
+    "linebreak-style": ["error", "unix"],
+    "semi": ["error", "always"],
+    "func-call-spacing": "error",
+    "space-before-function-paren": [
+      "error",
+      {
+	"anonymous": "never",
+	"named": "never",
+	"asyncArrow": "always"
+      }
+    ],
+    "keyword-spacing": [
+      "error",
+      { "before": true, "after": true }
+    ],
+    "no-confusing-arrow": "error",
+    "arrow-body-style": ["error", "as-needed"],
+    // rules I *almost* like :(
+    "no-var": "off", // ...for now
+    "no-redeclare": "off" // interferes with "exports" via script tags in same html file, see globals below
+    //"arrow-parens": ["error", "as-needed"], // conflicts with no-confusing-arrow
+    //"prefer-template": "error", // breaks when I use the ''+ idiom to ensure stringhood
+    //"brace-style": ["error", "1tbs"], // this breaks when I break long conditions in an if across multiple lines
+    //"curly": ["error", "multi-or-nest", "consistent"], // this breaks when I omit braces for a for containing only a braceless if
+  },
+  "globals": {
+    // browser features
+    "webkitAudioContext": "readonly",
+    // vars exported by *.js and shared via xm-player.html script tags (SMDH)
+    // xm-player.js
+    "actx": "writable",
+    "computePlaybackRate": "readonly",
+    "highlightAndCenterRow": "readonly",
+    "instrumentsDiv": "writable",
+    "maxVolume": "readonly",
+    "patternOrderDiv": "writable",
+    "patternsDiv": "writable",
+    "rowHighlight": "writable",
+    "showPatternsInput": "writable",
+    "songTable": "writable",
+    "stopPlaying": "readonly",
+    "stopPlease": "writable",
+    "xm": "writable",
+    // xm.js
+    "XM": "readonly",
+    // binary-file-reader.js
+    "BinaryFileReader": "readonly",
+    // channel.js
+    "afterDelay": "readonly",
+    "Channel": "readonly",
+    "sampleDataToBufferSource": "readonly",
+    // note-tooltips.js
+    "noteTooltips": "readonly"
+  }
+}

@@ -1,3 +1,4 @@
+/* exported BinaryFileReader */
 function BinaryFileReader(file) {
   this.pos = 0;
   this.fileReader = new FileReader();

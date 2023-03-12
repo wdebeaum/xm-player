@@ -77,6 +77,7 @@ function formatVolume(val) {
 }
 
 /* The XM class is for reading and displaying XM file data. */
+/* exported XM */
 function XM(file) {
   this.masterVolume = actx.createGain();
   this.masterVolume.connect(actx.destination);

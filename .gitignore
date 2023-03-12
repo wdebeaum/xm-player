@@ -1,2 +1,8 @@
 .*.swp
+*.wav
 *.xm
+README.html
+old/
+node_modules/
+package-lock.json
+package.json

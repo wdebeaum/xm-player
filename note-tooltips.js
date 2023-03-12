@@ -9,6 +9,7 @@ function vibratoTremoloWaveform(lo) {
 
 /* Given a 5-element array representing an XM note/command, return a 5-element
  * array of tooltips to put on the corresponding <td> elements. */
+/* exported noteTooltips */
 function noteTooltips(note) {
   var volParam = '0x' + (note[2] & 0x0f).toString(16);
   var effParam = '0x' + note[4].toString(16);

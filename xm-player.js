@@ -4,6 +4,7 @@ function computePlaybackRate(noteNum, relNoteNum, fineTune) {
   return Math.pow(2, (noteNum - 1 + relNoteNum - 48/*C-4*/ + fineTune/128)/12) * 8363 / 44100;
 }
 
+/* exported actx,maxVolume,showPatternsInput,songTable,patternOrderDiv,patternsDiv,instrumentsDiv,rowHighlight */
 var actx;
 var maxVolume = 0.2;
 // HTML elements
@@ -42,6 +43,7 @@ function highlightAndCenterRow(patternIndex, rowIndex) {
   rowHighlight.style.display = '';
 }
 
+/* exported stopPlease,stopPlaying,xm */
 var stopPlease = false;
 
 function stopPlaying() {
