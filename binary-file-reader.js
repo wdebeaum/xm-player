@@ -1,5 +1,7 @@
 /* exported BinaryFileReader */
+/** Facilitates reading binary data from a File. */
 class BinaryFileReader {
+  /** @param {File} file */
   constructor(file) {
     this.pos = 0;
     this.fileReader = new FileReader();
@@ -12,6 +14,14 @@ class BinaryFileReader {
     this.fileReader.readAsArrayBuffer(file);
   }
 
+  /** Read an array of integers.
+   * @param {number} count - the number of integers to read
+   * @param {boolean} signed - whether the integers may be negative
+   * @param {number} bytes - the number of bytes in each integer
+   * @param {boolean} littleEndian - whether the least significant byte comes
+   * first in each integer
+   * @return {number[]} the integers read
+   */
   readIntegers(count, signed, bytes, littleEndian) {
     const getter = `get${(signed ? 'Int' : 'Uint')}${bytes*8}`;
     const ret = []; // TODO make this a typed array?

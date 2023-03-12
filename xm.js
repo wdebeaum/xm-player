@@ -76,8 +76,8 @@ function formatVolume(val) {
   }
 }
 
-/* The XM class is for reading and displaying XM file data. */
 /* exported XM */
+/** The XM class is for reading and displaying XM file data. */
 class XM {
   constructor(file) {
     this.masterVolume = actx.createGain();
@@ -114,6 +114,7 @@ class XM {
     }
   }
 
+  /** Show descriptions of all parts of the song on the page. */
   drawSong() {
     this.drawSongHeader();
     if (showPatternsInput.checked) {
@@ -126,6 +127,7 @@ class XM {
     }
   }
 
+  /** Read the song header from the XM file. */
   readSongHeader() {
     const r = this.binaryReader;
     const idText = r.readZeroPaddedString(17);
@@ -164,6 +166,7 @@ class XM {
       r.readIntegers(256, false, 1, true).slice(0,this.songLength);
   }
 
+  /** Describe the song header in songTable and patternOrderDiv. */
   drawSongHeader() {
     songTable.innerHTML +=
       `<tr><td>Module name:</td><td>${this.moduleName.encodeHTML()}</td></tr>` +
@@ -181,6 +184,9 @@ class XM {
     }
   }
 
+  /** Read a pattern from the XM file and add it to this.patterns.
+   * @param {number} pi - pattern index
+   */
   readPattern(pi) {
     const r = this.binaryReader;
     const patternHeaderLength = r.readUint32();
@@ -249,6 +255,9 @@ class XM {
     }
   }
 
+  /** Append a description of a pattern to patternsDiv.
+   * @param {number} pi - pattern index
+   */
   drawPattern(pi) {
     appendHeading(patternsDiv, 3, 'Pattern ' + pi);
     appendButton(patternsDiv, '▶',
@@ -300,23 +309,26 @@ class XM {
     tableElement.innerHTML = table;
   }
 
+  /** Read an instrument from the XM file.
+   * @return {Object} the instrument
+   */
   readInstrument() {
     const r = this.binaryReader;
-    const ret = {};
+    const instr = {};
     const instrumentHeaderSize = r.readUint32();
     if (instrumentHeaderSize < 29) {
       console.warn('instrument header size too small; expected >=29 but got ' + instrumentHeaderSize);
     }
-    ret.name = r.readZeroPaddedString(22);
+    instr.name = r.readZeroPaddedString(22);
     const instrumentType = r.readUint8();
     if (instrumentType != 0) { console.warn('wrong instrument type; expected 0 but got 0x' + instrumentType.toString(16)); }
-    ret.numberOfSamples = r.readUint16();
+    instr.numberOfSamples = r.readUint16();
     if (instrumentHeaderSize >= 243) {
       const sampleHeaderSize = r.readUint32();
       if (sampleHeaderSize != 40) {
 	console.warn('wrong sample header size; expected 40, but got ' + sampleHeaderSize);
       }
-      ret.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
+      instr.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
       // volume and panning envelopes
       const pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
       const pointsForPanningEnvelope = r.readIntegers(24, false, 2, true);
@@ -330,15 +342,15 @@ class XM {
       const panningLoopEndPoint = r.readUint8();
       const volumeType = r.readUint8();
       const panningType = r.readUint8();
-      this.interpretVolumePanning(ret, 'volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
-      this.interpretVolumePanning(ret, 'panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
+      this.interpretVolumePanning(instr, 'volume', pointsForVolumeEnvelope, numberOfVolumePoints, volumeSustainPoint, volumeLoopStartPoint, volumeLoopEndPoint, volumeType);
+      this.interpretVolumePanning(instr, 'panning', pointsForPanningEnvelope, numberOfPanningPoints, panningSustainPoint, panningLoopStartPoint, panningLoopEndPoint, panningType);
       // vibrato
-      ret.vibratoType = r.readUint8();
-      ret.vibratoSweep = r.readUint8();
-      ret.vibratoDepth = r.readUint8();
-      ret.vibratoRate = r.readUint8();
+      instr.vibratoType = r.readUint8();
+      instr.vibratoSweep = r.readUint8();
+      instr.vibratoDepth = r.readUint8();
+      instr.vibratoRate = r.readUint8();
       // other
-      ret.volumeFadeout = r.readUint16();
+      instr.volumeFadeout = r.readUint16();
       /*const reserved = */r.readUint16();
       if (instrumentHeaderSize > 243) {
 	const count = instrumentHeaderSize - 243;
@@ -350,67 +362,88 @@ class XM {
       console.warn(`ignoring ${count} extra bytes after first 29 bytes of instrument header`);
       r.readIntegers(count, false, 1, true);
     }
-    ret.samples = [];
-    for (let si = 0; si < ret.numberOfSamples; si++) {
-      ret.samples.push(this.readSampleHeader());
+    instr.samples = [];
+    for (let si = 0; si < instr.numberOfSamples; si++) {
+      instr.samples.push(this.readSampleHeader());
     }
-    for (let si = 0; si < ret.numberOfSamples; si++) {
-      this.readSampleData(ret.samples[si]);
+    for (let si = 0; si < instr.numberOfSamples; si++) {
+      this.readSampleData(instr.samples[si]);
     }
-    return ret;
+    return instr;
   }
 
+  /** Append a description of an instrument to instrumentsDiv.
+   * @param {number} ii - instrument index
+   */
   drawInstrument(ii) {
     appendHeading(instrumentsDiv, 3, 'Instrument ' + (ii+1).toString(16));
     appendButton(instrumentsDiv, '▶',
 	this.playNote.bind(this, [65, ii+1, 0,0,0], 0));
     appendBreak(instrumentsDiv);
-    const ret = this.instruments[ii];
-    appendLine(instrumentsDiv, 'Name: ' + ret.name);
-    if (ret.numberOfSamples > 1 && 'sampleNumberForAllNotes' in ret) {
+    const instr = this.instruments[ii];
+    appendLine(instrumentsDiv, 'Name: ' + instr.name);
+    if (instr.numberOfSamples > 1 && 'sampleNumberForAllNotes' in instr) {
       let snfan = 'Sample number for all notes:';
       for (let i = 0; i < 96; i++) {
-	snfan += ' ' + ret.sampleNumberForAllNotes[i];
+	snfan += ' ' + instr.sampleNumberForAllNotes[i];
       }
       appendLine(instrumentsDiv, snfan);
     }
-    this.drawVolumePanning(ret, 'volume');
-    this.drawVolumePanning(ret, 'panning');
-    if (ret.vibratoType || ret.vibratoSweep ||
-	ret.vibratoDepth || ret.vibratoRate) {
-      appendLine(instrumentsDiv, `Vibrato: ${vibratoTypes[ret.vibratoType]}(sweep=reach full depth at ${ret.vibratoSweep} ticks after vibrato start; depth = ±${ret.vibratoDepth} / 16 semitones; rate=${ret.vibratoRate} / 256 cycles per tick)`);
+    this.drawVolumePanning(instr, 'volume');
+    this.drawVolumePanning(instr, 'panning');
+    if (instr.vibratoType || instr.vibratoSweep ||
+	instr.vibratoDepth || instr.vibratoRate) {
+      appendLine(instrumentsDiv, `Vibrato: ${vibratoTypes[instr.vibratoType]}(sweep=reach full depth at ${instr.vibratoSweep} ticks after vibrato start; depth = ±${instr.vibratoDepth} / 16 semitones; rate=${instr.vibratoRate} / 256 cycles per tick)`);
     }
-    if (ret.volumeFadeout > 0) {
-      appendLine(instrumentsDiv, `Volume fadeout: reduce volume by ${ret.volumeFadeout} / 32768 of what its full volume would be otherwise, per tick after note release`);
+    if (instr.volumeFadeout > 0) {
+      appendLine(instrumentsDiv, `Volume fadeout: reduce volume by ${instr.volumeFadeout} / 32768 of what its full volume would be otherwise, per tick after note release`);
     }
-    for (let si = 0; si < ret.numberOfSamples; si++) {
+    for (let si = 0; si < instr.numberOfSamples; si++) {
       appendHeading(instrumentsDiv, 4, 'Sample ' + si);
-      this.drawSampleHeader(ret.samples[si]);
-      this.drawSampleData(ret.samples[si]);
+      this.drawSampleHeader(instr.samples[si]);
+      this.drawSampleData(instr.samples[si]);
     }
   }
 
+  /** Interpret volume or panning fields from an XM file and add them to an
+   * instrument object.
+   * @param {Object} instr - instrument to be returned by {@link
+   * #readInstrument}
+   * @param {string} volumeOrPanning - 'volume' or 'panning'
+   * @param {number[24]} points - flattened point data, 16-bit unsigned integers
+   * @param {number} numberOfPoints - number of valid points in the data
+   * @param {number} sustainPoint - index of point to stay at while sustaining
+   * a note
+   * @param {number} loopStartPoint - index of the point at the start of the
+   * loop
+   * @param {number} loopEndPoint - index of the point at the end of the loop
+   * @param {number} type - volume or panning type flags: 1=on, 2=sus, 4=loop
+   */
   interpretVolumePanning(
-    ret, volumeOrPanning, points, numberOfPoints,
+    instr, volumeOrPanning, points, numberOfPoints,
     sustainPoint, loopStartPoint, loopEndPoint, type
   ) {
     if (type & 1) { // On
-      const envelope = ret[volumeOrPanning + 'Envelope'] = [];
+      const envelope = instr[volumeOrPanning + 'Envelope'] = [];
       for (let i = 0; i < numberOfPoints; i++) {
 	envelope.push(points.slice(i*2,i*2+2));
       }
       if (type & 2) { // Sustain
-	ret[volumeOrPanning + 'SustainPoint'] = sustainPoint;
+	instr[volumeOrPanning + 'SustainPoint'] = sustainPoint;
       }
       if (type & 4) { // Loop
-	ret[volumeOrPanning + 'LoopStartPoint'] = loopStartPoint;
-	ret[volumeOrPanning + 'LoopEndPoint'] = loopEndPoint;
+	instr[volumeOrPanning + 'LoopStartPoint'] = loopStartPoint;
+	instr[volumeOrPanning + 'LoopEndPoint'] = loopEndPoint;
       }
     }
   }
 
-  drawVolumePanning(ret, volumeOrPanning) {
-    if ((volumeOrPanning + 'Envelope') in ret) {
+  /** Append a drawing of a volume or panning envelope to instrumentsDiv.
+   * @param {Object} instr - instrument as returned by {@link #readInstrument}
+   * @param {string} volumeOrPanning - 'volume' or 'panning'
+   */
+  drawVolumePanning(instr, volumeOrPanning) {
+    if ((volumeOrPanning + 'Envelope') in instr) {
       appendHeading(instrumentsDiv, 4,
 	  // capitalize
 	  volumeOrPanning.slice(0,1).toUpperCase() + volumeOrPanning.slice(1));
@@ -427,22 +460,25 @@ class XM {
       svg.appendChild(bg);
       const p = document.createElementNS(svgNS, 'path');
       let path = '';
-      const envelope = ret[volumeOrPanning + 'Envelope'];
+      const envelope = instr[volumeOrPanning + 'Envelope'];
       for (let i = 0; i < envelope.length; i++) {
 	path += (i == 0 ? 'M ' : ' L ') + envelope[i][0] + ' ' + (64-envelope[i][1]);
       }
       p.setAttribute('d', path);
       svg.appendChild(p);
       appendBreak(instrumentsDiv);
-      if ((volumeOrPanning + 'SustainPoint') in ret) {
-	appendLine(instrumentsDiv, 'Sustain point: ' + ret[volumeOrPanning + 'SustainPoint']);
+      if ((volumeOrPanning + 'SustainPoint') in instr) {
+	appendLine(instrumentsDiv, 'Sustain point: ' + instr[volumeOrPanning + 'SustainPoint']);
       }
-      if ((volumeOrPanning + 'LoopStartPoint') in ret) { // Loop
-	appendLine(instrumentsDiv, `Loop: ${ret[volumeOrPanning + 'LoopStartPoint']}-${ret[volumeOrPanning + 'LoopEndPoint']}`);
+      if ((volumeOrPanning + 'LoopStartPoint') in instr) { // Loop
+	appendLine(instrumentsDiv, `Loop: ${instr[volumeOrPanning + 'LoopStartPoint']}-${instr[volumeOrPanning + 'LoopEndPoint']}`);
       }
     }
   }
 
+  /** Read the header of a sample into an object.
+   * @return {Object} the read sample header
+   */
   readSampleHeader() {
     const r = this.binaryReader;
     const s = {};
@@ -461,6 +497,10 @@ class XM {
     return s;
   }
 
+  /** Append a description of a sample header to instrumentsDiv.
+   * @param {Object} s - sample structure as returned by {@link
+   * #readSampleHeader}
+   */
   drawSampleHeader(s) {
     const table = document.createElement('table');
     instrumentsDiv.appendChild(table);
@@ -478,6 +518,10 @@ class XM {
       `<tr><td>Length:</td><td>${s.lengthInBytes} bytes (${s.bytesPerSample} byte(s) per sample)</td></tr>`;
   }
 
+  /** Read waveform data into a sample.
+   * @param {Object} s - sample structure as returned by {@link
+   * #readSampleHeader}
+   */
   readSampleData(s) {
     const deltas = this.binaryReader.readIntegers(
       s.lengthInBytes / s.bytesPerSample, true, s.bytesPerSample, true);
@@ -499,6 +543,10 @@ class XM {
     }
   }
 
+  /** Append a drawing of a sample waveform to instrumentsDiv.
+   * @param {Object} s - sample structure as returned by {@link
+   * #readSampleHeader} and read into by {@link #readSampleData}
+   */
   drawSampleData(s) {
     // draw waveform on a canvas
     const canvas = document.createElement('canvas');
@@ -538,7 +586,11 @@ class XM {
     );
   }
 
-  /* Set the global volume. (See also the same function in Channel) */
+  /** Set the global volume.
+   * @see Channel#setVolume
+   * @param {number} [when=actx.currentTime]
+   * @param {number} volume
+   */
   setVolume(when, volume) {
     if (when === undefined) { when = actx.currentTime; }
     this.globalVolume = volume;
@@ -550,7 +602,11 @@ class XM {
     }
   }
 
-  /* Slide the global volume up or down. (See also the same function in Channel)
+  /** Slide the global volume up or down.
+   * @see Channel#volumeSlide
+   * @param {number} when
+   * @param {boolean} up
+   * @param {number} rate
    */
   volumeSlide(when, up, rate) {
     const duration = this.rowDuration();
@@ -569,10 +625,12 @@ class XM {
 	maxVolume * newVolume / 0x40, when + duration);
   }
 
-  // return the factor to multiply (porta up) or divide (porta down) the
-  // playback rate by for an entire row (not just one tick) for the given
-  // effect parameter value
-  // effectParam is in 16ths of a semitone per tick
+  /**
+   * @param {number} effectParam - porta effect parameter value: porta rate in
+   * 16ths of a semitone per tick
+   * @return {number} the factor to multiply (porta up) or divide (porta down)
+   * the playback rate by for an entire row (not just one tick)
+   */
   portaToPlaybackRateFactor(effectParam) {
     return Math.pow(2, effectParam * this.currentTempo / (16*12));
   }
@@ -587,16 +645,26 @@ class XM {
     }
   }
 
-  // return the current duration of one tick in seconds
+  /** @return {number} the current duration of one tick in seconds */
   tickDuration() {
     return 2.5 / this.currentBPM;
   }
 
-  // return the current duration of one pattern row in seconds
+  /** @return {number} the current duration of one pattern row in seconds */
   rowDuration() {
     return this.currentTempo * this.tickDuration();
   }
 
+  /** Play (the rest of) one pattern in a song.
+   * @param {Array.<Array.<number[5]>>} pattern - array of rows, each of which
+   * is an array of notes, each of which is an array of 5 numbers
+   * @param {number} patternIndex - index of the pattern in the patterns array
+   * @param {number} [startRow=0] - index of the pattern row to start with
+   * @param {Function} [onEnded] - function to call when playing this pattern
+   * has ended
+   * @param {boolean} [loop=false] - whether to loop at the end of the pattern
+   * @param {number} [startTime=actx.currentTime] - time to start playing
+   */
   playPattern(pattern, patternIndex, startRow, onEnded, loop, startTime) {
     if (stopPlease) {
       // stop showing row highlight
@@ -639,6 +707,11 @@ class XM {
     for (const c of this.channels) { c.cutNote(); }
   }
 
+  /** Play (the rest of) one whole song.
+   * @param {number} [startIndex=0] - song position to start at
+   * @param {Function} [onEnded] - function to call when playing has ended
+   * @param {boolean} [loop=false] - whether to loop at the end of the song
+   */
   playSong(startIndex, onEnded, loop) {
     if (stopPlease) {
       if (onEnded !== undefined) {

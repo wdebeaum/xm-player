@@ -31,8 +31,11 @@ function sampleDataToBufferSource(data, bytesPerSample) {
 
 let lastLag = 0;
 
-// return a version of fn that will only ever call the original fn once; any
-// subsequent calls to the returned function will do nothing
+/**
+ * @param {Function} fn
+ * @return {Function} a version of fn that will only ever call the original fn
+ * once; any subsequent calls to the returned function will do nothing
+ */
 function once(fn) {
   let first = true;
   return function(...args) {
@@ -43,9 +46,14 @@ function once(fn) {
   };
 }
 
-// call fn(startTime+delay) at time startTime+delay, or immediately if that has
-// already passed. Return a function that can be used to cancel calling fn.
 /* exported afterDelay */
+/** Call fn(startTime+delay) at time startTime+delay, or immediately if that
+ * has already passed.
+ * @param {number} startTime
+ * @param {number} delay
+ * @param {Function} fn
+ * @return {Function} a function that can be used to cancel calling fn
+ */
 function afterDelay(startTime, delay, fn) {
   const endTime = startTime + delay;
   if (actx.currentTime >= endTime) {
@@ -82,14 +90,15 @@ function afterDelay(startTime, delay, fn) {
  */
 const maxNoteNum = 95;
 
-/* One channel/track as it plays notes. */
 /* exported Channel */
+/** One channel/track as it plays notes. */
 class Channel {
   constructor(xm) {
     this.xm = xm;
     this.reset();
   }
 
+  /** Reset this channel to the default initial state. */
   reset() {
     // XM stuff
     this.notePhase = 'off'; // 'sustain', 'release'
@@ -129,9 +138,13 @@ class Channel {
     this.bs = undefined; // BufferSource
   }
 
-  /* Begin playing a note at time "when". If "when" has passed, begin
+  /** Begin playing a note at time "when". If "when" has passed, begin
    * immediately, but schedule things as if "when" were the time the note
    * started. This logic applies to the "when" parameter of all Channel methods.
+   * @param {number} when
+   * @param {number} noteNum
+   * @param {number} instrumentNum
+   * @param {number} offsetInBytes
    */
   triggerNote(when, noteNum, instrumentNum, offsetInBytes) {
     // first, stop playing the old note, if any
@@ -226,7 +239,9 @@ class Channel {
     }
   }
 
-  /* End the sustain phase of playing the note and enter the release phase. */
+  /** End the sustain phase of playing the note and enter the release phase.
+   * @param {number} [when=actx.currentTime]
+   */
   releaseNote(when) {
     if (this.notePhase != 'sustain') { return; }
     if (when === undefined) { when = actx.currentTime; }
@@ -243,7 +258,9 @@ class Channel {
     }
   }
 
-  /* Stop playing the note (no release phase). */
+  /** Stop playing the note (no release phase).
+   * @param {number} [when=actx.currentTime]
+   */
   cutNote(when) {
     if (this.notePhase == 'off') { return; }
     this.notePhase = 'off';
@@ -260,7 +277,10 @@ class Channel {
     // TODO disconnect/undefine nodes when when+0.2 passes
   }
 
-  /* Process a 5-element note/command array from a pattern. */
+  /** Process a 5-element note/command array from a pattern.
+   * @param {number} when
+   * @param {number[5]} note
+   */
   applyCommand(when, note) {
     const [noteNum, instrumentNum, volume, effectType, effectParam] = note;
     // TODO if effectParam==0 set it to prev value for some types: 1-7, A, E1-2, EA-B, H (0x11), P, R, X1, X2 (prev value for that type, or any type? what about Exx with part of the type in the param?) (also do this for tooltips)
@@ -300,6 +320,11 @@ class Channel {
     this.applyEffect(when, effectType, effectParam);
   }
 
+  /** Apply a global effect.
+   * @param {number} when
+   * @param {number} effectType
+   * @param {number} effectParam
+   */
   applyGlobalEffect(when, effectType, effectParam) {
     switch (effectType) {
       case 0xf: // set tempo/BPM
@@ -327,7 +352,11 @@ class Channel {
     }
   }
 
-  /* Process the effect/param portion of a note. */
+  /** Process the effect/param portion of a note.
+   * @param {number} when
+   * @param {number} effectType
+   * @param {number} effectParam
+   */
   applyEffect(when, effectType, effectParam) {
     // NOTE: this.bs.playbackRate.value might be wrong in the context of the
     // song; we always set this.nextPbr to the value it *should* be at the start
@@ -465,7 +494,10 @@ class Channel {
     }
   }
 
-  /* Process the volume column of a note. */
+  /** Process the volume column of a note.
+   * @param {number} when
+   * @param {number} volume
+   */
   applyVolume(when, volume) {
     const oldPbr = this.nextPbr;
     const hi = (volume >> 4);
@@ -539,8 +571,10 @@ class Channel {
     }
   }
 
-  /* Set the actual note volume 0-0x40 (not the volume column, not the
+  /** Set the actual note volume 0-0x40 (not the volume column, not the
    * envelope).
+   * @param {number} [when=actx.currentTime]
+   * @param {number} volume
    */
   setVolume(when, volume) {
     if (when === undefined) { when = actx.currentTime; }
@@ -563,7 +597,11 @@ class Channel {
     }
   }
 
-  /* Slide volume in ±64ths of full volume per tick. */
+  /** Slide volume in ±64ths of full volume per tick.
+   * @param {number} when
+   * @param {boolean} up
+   * @param {number} rate
+   */
   volumeSlide(when, up, rate) {
     // FIXME how does this interact with instrument volume fadeout?
     const duration = this.xm.rowDuration();
@@ -584,7 +622,10 @@ class Channel {
     }
   }
 
-  /* Set the note panning (not the envelope). */
+  /** Set the note panning (not the envelope).
+   * @param {number} when
+   * @param {number} panning
+   */
   setPanning(when, panning) {
     this.panning = panning;
     if (this.notePhase != 'off' && haveStereoPanner) {
@@ -596,11 +637,16 @@ class Channel {
     }
   }
 
-  /* Set a vibrato or tremolo (depending on "which") parameter (depending on
+  /** Set a vibrato or tremolo (depending on "which") parameter (depending on
    * "key") to "val". Automatically set this[which].on based on the new
    * settings.
    * Keys and vals are in terms of autovibrato, though this is used for dynamic
    * vibrato; pay attention to units and the options for "type".
+   * @param {number} when
+   * @param {string} which - 'vibrato' or 'tremolo'
+   * @param {string} key - one of 'on', 'type', 'sweep', 'depth', or 'rate'
+   * @param {boolean|number} val
+   * @param {boolean} dontTrigger
    */
   setVibratoTremolo(when, which, key, val, dontTrigger) {
     this[which][key] = val;
@@ -646,7 +692,11 @@ class Channel {
     }
   }
 
-  /* Begin volume/panning envelope (depending on "which"). */
+  /** Begin volume/panning envelope (depending on "which").
+   * @param {number} when
+   * @param {string} which - 'volume' or 'panning'
+   * @param {number} [firstPoint=0] - index of the envelope point to start at
+   */
   triggerEnvelope(when, which, firstPoint) {
     if (when < 0) { throw "WTF"; }
     if (firstPoint === undefined) { firstPoint = 0; }
@@ -678,13 +728,19 @@ class Channel {
     }
   }
 
-  /* Restart volume/panning envelope on already playing note. */
+  /** Restart volume/panning envelope on already playing note.
+   * @param {number} when
+   * @param {string} which - 'volume' or 'panning'
+   */
   retriggerEnvelope(when, which) {
     this.cutEnvelope(when, which);
     this.triggerEnvelope(when, which);
   }
 
-  /* Sustain volume/panning envelope by looping back to the loop start position.
+  /** Sustain volume/panning envelope by looping back to the loop start
+   * position.
+   * @param {number} when
+   * @param {string} which - 'volume' or 'panning'
    */
   loopEnvelope(when, which) {
     if (when < 0) { throw "WTF"; }
@@ -695,8 +751,10 @@ class Channel {
     this.triggerEnvelope(when - timeUntilLoopStart, which, loopStartPoint);
   }
 
-  /* End the sustain phase of volume/panning envelope and enter the release
+  /** End the sustain phase of volume/panning envelope and enter the release
    * phase.
+   * @param {number} when
+   * @param {string} which - 'volume' or 'panning'
    */
   releaseEnvelope(when, which) {
     const envelopeNode = this[which + 'EnvelopeNode'];
@@ -718,7 +776,10 @@ class Channel {
     }
   }
 
-  /* Stop using volume/panning envelope (no release phase). */
+  /** Stop using volume/panning envelope (no release phase).
+   * @param {number} when
+   * @param {string} which - 'volume' or 'panning'
+   */
   cutEnvelope(when, which) {
     const envelopeNode = this[which + 'EnvelopeNode'];
     if (envelopeNode !== undefined) {
@@ -730,7 +791,9 @@ class Channel {
     }
   }
 
-  /* Set up nodes and trigger vibrato. */
+  /** Set up nodes and trigger vibrato.
+   * @param {number} when
+   */
   triggerVibrato(when) {
     // get rid of previous vibrato
     if (this.vibrato.on) { this.cutVibrato(when); }
@@ -770,7 +833,9 @@ class Channel {
     this.vibratoNode.start(when);
   }
 
-  /* Stop vibrato and tear down nodes. */
+  /** Stop vibrato and tear down nodes.
+   * @param {number} when
+   */
   cutVibrato(when) {
     this.vibrato.on = false;
     this.vibratoNode.stop(when);
@@ -780,12 +845,16 @@ class Channel {
     this.vibratoNode = undefined;
   }
 
-  /* Set up nodes and trigger tremolo. */
+  /** Set up nodes and trigger tremolo.
+   * @param {number} when
+   */
   triggerTremolo(when) {
     // TODO like vibrato but with volume instead of detune (may need extra volume node?)
   }
 
-  /* Stop tremolo and tear down nodes. */
+  /** Stop tremolo and tear down nodes.
+   * @param {number} when
+   */
   cutTremolo(when) {
     // TODO
   }

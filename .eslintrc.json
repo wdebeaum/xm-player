@@ -1,5 +1,6 @@
 {
-  "extends": "eslint:recommended",
+  "plugins": ["jsdoc"],
+  "extends": ["eslint:recommended", "plugin:jsdoc/recommended-error"],
   "env": {
     "browser": true,
     "es6": true
@@ -36,6 +37,25 @@
     "no-confusing-arrow": "error",
     "arrow-body-style": ["error", "as-needed"],
     "curly": "error",
+    "jsdoc/require-jsdoc": [
+      "error",
+      {
+	"minLineCount": 25,
+	"require": {
+	  "ClassDeclaration": true,
+	  "FunctionDeclaration": true,
+	  "MethodDefinition": true
+	}
+      }
+    ],
+    "jsdoc/multiline-blocks": [
+      "error",
+      {
+	"noZeroLineText": false
+      }
+    ],
+    "jsdoc/require-param-description": "off",
+    "jsdoc/newline-after-description": "off",
     // rules I *almost* like :(
     "no-redeclare": "off" // interferes with "exports" via script tags in same html file, see globals below
     //"arrow-parens": ["error", "as-needed"], // conflicts with no-confusing-arrow
@@ -70,5 +90,15 @@
     "sampleDataToBufferSource": "readonly",
     // note-tooltips.js
     "noteTooltips": "readonly"
+  },
+  "settings": {
+    "jsdoc": {
+      "tagNamePreference": {
+	"returns": "return"
+      },
+      "preferredTypes": {
+	"object": "object" // allow both Object and object, the former conventionally meaning an object whose constructor is exactly Object
+      }
+    }
   }
 }
