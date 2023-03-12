@@ -35,12 +35,12 @@
     ],
     "no-confusing-arrow": "error",
     "arrow-body-style": ["error", "as-needed"],
+    "curly": "error",
     // rules I *almost* like :(
     "no-redeclare": "off" // interferes with "exports" via script tags in same html file, see globals below
     //"arrow-parens": ["error", "as-needed"], // conflicts with no-confusing-arrow
     //"prefer-template": "error", // breaks when I use the ''+ idiom to ensure stringhood
     //"brace-style": ["error", "1tbs"], // this breaks when I break long conditions in an if across multiple lines
-    //"curly": ["error", "multi-or-nest", "consistent"], // this breaks when I omit braces for a for containing only a braceless if
   },
   "globals": {
     // browser features

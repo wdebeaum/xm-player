@@ -327,8 +327,9 @@ function readInstrument() {
   ret.numberOfSamples = r.readUint16();
   if (instrumentHeaderSize >= 243) {
     const sampleHeaderSize = r.readUint32();
-    if (sampleHeaderSize != 40)
+    if (sampleHeaderSize != 40) {
       console.warn(`expected sample header size field to be 40, but got ${sampleHeaderSize}`);
+    }
     ret.sampleNumberForAllNotes = r.readIntegers(96, false, 1, true);
     // volume and panning envelopes
     const pointsForVolumeEnvelope = r.readIntegers(24, false, 2, true);
