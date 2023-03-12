@@ -267,8 +267,7 @@ class XM {
     for (let ri = 0; ri < this.patterns[pi].length; ri++) {
       const row = this.patterns[pi][ri];
       table += `<tr id="pattern-${pi}-row-${ri}" class="row-${ri % 8}"><td class="row-num">${ri.toString(16)}</td>`;
-      for (let ci = 0; ci < row.length; ci++) {
-	const note = row[ci];
+      for (const note of row) {
 	// get tooltips
 	const tooltips = noteTooltips(note);
 	// wrap them in title attribute if present
@@ -487,8 +486,8 @@ class XM {
     const maxsint = (maxint>>1)-1;
     const minsint = -(maxint>>1);
     let old = 0;
-    for (let i = 0; i < deltas.length; i++) {
-      let neww = old + deltas[i];
+    for (const delta of deltas) {
+      let neww = old + delta;
       // discard overflow
       if (neww > maxsint) {
 	neww -= maxint;
@@ -637,7 +636,7 @@ class XM {
   stopAllChannels() {
     this.nextSongPosition = undefined;
     this.nextPatternStartRow = undefined;
-    this.channels.forEach(function(c) { c.cutNote(); });
+    for (const c of this.channels) { c.cutNote(); }
   }
 
   playSong(startIndex, onEnded, loop) {
