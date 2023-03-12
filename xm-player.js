@@ -29,10 +29,15 @@ function onBodyLoad() {
   instrumentsDiv = document.getElementById('instruments');
   rowHighlight = document.getElementById('row-highlight');
   if (location.hash !== '') {
-    const url = location.hash.slice(1); // remove # from beginning
-    fetchUrlAndRead(url);
+    onHashChange();
   }
 }
+
+function onHashChange() {
+  const url = location.hash.slice(1); // remove # from beginning
+  fetchUrlAndRead(url);
+}
+window.addEventListener('hashchange', onHashChange);
 
 function highlightAndCenterRow(patternIndex, rowIndex) {
   const rowID = `pattern-${patternIndex}-row-${rowIndex}`;
@@ -99,5 +104,6 @@ function onInputFileChange(evt) {
 }
 
 function onFetch(evt) {
-  fetchUrlAndRead(xmUrlInput.value);
+  // call fetchUrlAndRead via onHashChange
+  location.hash = '#' + xmUrlInput.value;
 }

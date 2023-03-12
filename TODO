@@ -1,4 +1,4 @@
-? add onhashchange handler so that when we edit the url to go to another song, it actually loads the new song when I press enter, without me having to reload the whole page with the reload button
+# add onhashchange handler so that when we edit the url to go to another song, it actually loads the new song when I press enter, without me having to reload the whole page with the reload button
 # pitch is off relative to jsxm; check sign of finetune/relnote?
 # sometimes lags, particularly noticeable in mysong66.xm
  # avoid using actx.currentTime and instead pass along the time it's supposed to be as a starting point
