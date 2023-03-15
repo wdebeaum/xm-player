@@ -3,16 +3,11 @@
 <meta charset="UTF-8">
 <title>XM player</title>
 <link rel="stylesheet" href="xm-player.css">
-<!-- style type="text/css">
-#pattern-0-row-0 {
-  background: black;
-  color: white;
-}
-</style -->
 <script type="text/javascript" src="channel.js"></script>
 <script type="text/javascript" src="binary-file-reader.js"></script>
 <script type="text/javascript" src="note-tooltips.js"></script>
 <script type="text/javascript" src="xm.js"></script>
+<script type="text/javascript" src="wav.js"></script>
 <script type="text/javascript" src="xm-player.js"></script>
 </head>
 <body onload="onBodyLoad()">
@@ -24,8 +19,16 @@ or enter <label>a URL to fetch a remote XM file from: <input type="url" id="xm-u
 <button onclick="onFetch(event)">Fetch remote XM file</button>
 <div id="song" style="display: none">
 <h2>Song</h2>
-<button onclick="xm.playSong()">▶</button>
-<button onclick="xm.playSong(0,undefined,true)">↺</button>
+<button onclick="xm.playSong()" title="play song once">▶</button>
+<button onclick="xm.playSong(0,undefined,true)" title="play song repeatedly">↺</button>
+<button onclick="xm.saveWav()" title="render and save .wav file">∿⤓</button>
+<svg id="recording-spinner" viewBox="0 2 16 11" style="display: none">
+<g transform="translate(0.5,0.5)">
+<rect x="0" y="2" width="15" height="10" rx="1" ry="1" class="cassette" />
+<path d="M8.879,5.879 A3,3,0,1,0,11,4 L8,4" class="from reel" />
+<path d="M8,1.5 L8,4 4,4 A3,3,0,1,0,6.121,5.879" class="to reel" />
+</g>
+</svg>
 <br>
 <table id="song-header">
 </table>
@@ -35,7 +38,7 @@ or enter <label>a URL to fetch a remote XM file from: <input type="url" id="xm-u
 <h2>Instruments</h2>
 <div id="instruments"></div>
 <div id="row-highlight" style="position: fixed; font-size: small; left: 0; top: 50%; margin-top: -1.5ex; width: 100%; display: none;">▶</div>
-<button id="stop-button" onclick="stopPlaying()" style="position: fixed; top: 0; right: 0;">■</button>
+<button id="stop-button" onclick="stopPlaying()" style="position: fixed; top: 0; right: 0;" title="stop playing">■</button>
 </div>
 </body>
 </html>

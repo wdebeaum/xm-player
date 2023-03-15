@@ -42,12 +42,45 @@ tr.row-4 td.row-num { color: yellow; }
 tr.row-0 { background: rgb(31,31,63); }
 tr.row-4 { background: rgb(15,15,31); }
 
-rect {
+svg.env rect {
   fill: white;
   stroke: blue;
 }
 
-path {
+svg.env path {
   fill: none;
   stroke: black;
+}
+
+#recording-spinner {
+  vertical-align: bottom;
+  width: 32px;
+  height: 22px;
+}
+
+rect.cassette {
+  stroke: #888;
+  stroke-width: 1;
+  fill: #ccc;
+}
+
+path.reel {
+  stroke-width: 1;
+  fill: none;
+  animation: 0.5s infinite reel linear;
+}
+
+path.from.reel {
+  stroke: black;
+  stroke-dasharray: 1,3;
+}
+
+path.to.reel {
+  stroke: maroon;
+  stroke-dasharray: 3,1;
+}
+
+@keyframes reel {
+  0% { stroke-dashoffset: 4 }
+  100% { stroke-dashoffset: 0 }
 }

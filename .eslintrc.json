@@ -73,6 +73,7 @@
     "instrumentsDiv": "writable",
     "maxVolume": "readonly",
     "patternOrderDiv": "writable",
+    "recordingSpinner": "writable",
     "patternsDiv": "writable",
     "rowHighlight": "writable",
     "showPatternsInput": "writable",
@@ -89,7 +90,9 @@
     "Channel": "readonly",
     "sampleDataToBufferSource": "readonly",
     // note-tooltips.js
-    "noteTooltips": "readonly"
+    "noteTooltips": "readonly",
+    // wav.js
+    "audioBufferToWavBlob": "readonly"
   },
   "settings": {
     "jsdoc": {

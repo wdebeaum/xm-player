@@ -22,6 +22,7 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - Optionally scroll to the currently playing pattern row (if the "Show patterns" checkbox is checked before loading the file).
  - Play individual patterns, instruments, and samples.
  - Loop songs and individual patterns.
+ - Render and save songs to .wav files.
  - Click the stop button at the top right to stop playing any sound.
  - Tested in Firefox and Chrome. May also work in Safari, Opera, and Edge (not IE, or Opera Mini). I'm going by [caniuse](http://caniuse.com/#feat=audio-api).
 

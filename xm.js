@@ -37,8 +37,9 @@ function appendHeading(parentNode, level, text) {
 
 // onclick may be a string to put in the onclick attribute, or a function to
 // assign to the onclick property
-function appendButton(parentNode, label, onclick) {
+function appendButton(parentNode, label, tooltip, onclick) {
   const button = document.createElement('button');
+  button.setAttribute('title', tooltip);
   switch (typeof onclick) {
     case 'string':
       button.setAttribute('onclick', onclick);
@@ -260,10 +261,10 @@ class XM {
    */
   drawPattern(pi) {
     appendHeading(patternsDiv, 3, 'Pattern ' + pi);
-    appendButton(patternsDiv, '▶',
+    appendButton(patternsDiv, '▶', 'play pattern',
       this.playPattern.bind(this,
 	this.patterns[pi], pi, 0, undefined, false, undefined));
-    appendButton(patternsDiv, '↺',
+    appendButton(patternsDiv, '↺', 'play pattern repeatedly',
       this.playPattern.bind(this,
 	this.patterns[pi], pi, 0, undefined, true, undefined));
     appendBreak(patternsDiv);
@@ -377,8 +378,8 @@ class XM {
    */
   drawInstrument(ii) {
     appendHeading(instrumentsDiv, 3, 'Instrument ' + (ii+1).toString(16));
-    appendButton(instrumentsDiv, '▶',
-	this.playNote.bind(this, [65, ii+1, 0,0,0], 0));
+    appendButton(instrumentsDiv, '▶', 'play instrument',
+	this.playNote.bind(this, undefined, [65, ii+1, 0,0,0], 0));
     appendBreak(instrumentsDiv);
     const instr = this.instruments[ii];
     appendLine(instrumentsDiv, 'Name: ' + instr.name);
@@ -448,6 +449,7 @@ class XM {
 	  // capitalize
 	  volumeOrPanning.slice(0,1).toUpperCase() + volumeOrPanning.slice(1));
       const svg = document.createElementNS(svgNS, 'svg');
+      svg.setAttribute('class', 'env');
       svg.setAttribute('viewBox', '0 0 192 64');
       svg.setAttribute('width',384);
       svg.setAttribute('height',128);
@@ -574,11 +576,11 @@ class XM {
       }
     }
     appendBreak(instrumentsDiv);
-    appendButton(instrumentsDiv, '▶',
+    appendButton(instrumentsDiv, '▶', 'play sample',
       function() {
 	const bs = sampleDataToBufferSource(s.data, s.bytesPerSample);
 	// TODO apply sample volume (0-64), panning (left 0 - right 255)
-	bs.playbackRate =
+	bs.playbackRate.value =
 	  computePlaybackRate(64, s.relativeNoteNumber, s.finetune);
 	bs.connect(xm.masterVolume);
 	bs.start();
@@ -635,13 +637,14 @@ class XM {
     return Math.pow(2, effectParam * this.currentTempo / (16*12));
   }
 
-  playNote(note, channel) {
-    this.channels[channel].applyCommand(actx.currentTime /*FIXME*/, note);
+  playNote(when, note, channel) {
+    if (when === undefined) { when = actx.currentTime; }
+    this.channels[channel].applyCommand(when, note);
   }
 
-  playRow(row) {
+  playRow(when, row) {
     for (let i = 0; i < row.length; i++) {
-      this.playNote(row[i], i);
+      this.playNote(when, row[i], i);
     }
   }
 
@@ -661,7 +664,7 @@ class XM {
    * @param {number} patternIndex - index of the pattern in the patterns array
    * @param {number} [startRow=0] - index of the pattern row to start with
    * @param {Function} [onEnded] - function to call when playing this pattern
-   * has ended
+   * has ended; its only argument is the time that the pattern ended
    * @param {boolean} [loop=false] - whether to loop at the end of the pattern
    * @param {number} [startTime=actx.currentTime] - time to start playing
    */
@@ -670,7 +673,7 @@ class XM {
       // stop showing row highlight
       if (showPatternsInput.checked) { rowHighlight.style.display = 'none'; }
       if (onEnded !== undefined) {
-	onEnded.call();
+	onEnded(startTime);
       }
       return;
     }
@@ -678,12 +681,18 @@ class XM {
     if (startTime === undefined) { startTime = actx.currentTime; }
     if (this.nextSongPosition !== undefined) { startRow = pattern.length; }
     if (startRow < pattern.length) {
+      // allow for lag in realtime playing without letting offline renderer
+      // outrace us
+      if (!(actx instanceof OfflineAudioContext) &&
+	  startTime < actx.currentTime) {
+	startTime = actx.currentTime;
+      }
       // update display
       if (showPatternsInput.checked) {
 	highlightAndCenterRow(patternIndex, startRow);
       }
       // play all the notes/commands in the row
-      this.playRow(pattern[startRow]);
+      this.playRow(startTime, pattern[startRow]);
       // delay one row (in seconds)
       const delay = this.rowDuration();
       // recurse on next row
@@ -696,30 +705,34 @@ class XM {
       // stop showing row highlight
       if (showPatternsInput.checked) { rowHighlight.style.display = 'none'; }
       if (onEnded !== undefined) {
-	onEnded.call();
+	onEnded(startTime);
       }
     }
   }
 
-  stopAllChannels() {
+  stopAllChannels(when) {
+    if (when === undefined) { when = actx.currentTime; }
     this.nextSongPosition = undefined;
     this.nextPatternStartRow = undefined;
-    for (const c of this.channels) { c.cutNote(); }
+    for (const c of this.channels) { c.cutNote(when); }
   }
 
   /** Play (the rest of) one whole song.
    * @param {number} [startIndex=0] - song position to start at
-   * @param {Function} [onEnded] - function to call when playing has ended
+   * @param {Function} [onEnded] - function to call when playing has ended; its
+   * only argument is the time that the song ended
    * @param {boolean} [loop=false] - whether to loop at the end of the song
+   * @param {number} [startTime=actx.currentTime] - time to start at
    */
-  playSong(startIndex, onEnded, loop) {
+  playSong(startIndex, onEnded, loop, startTime) {
     if (stopPlease) {
       if (onEnded !== undefined) {
-	onEnded.call();
+	onEnded(startTime);
       }
       return;
     }
     if (startIndex === undefined) { startIndex = 0; }
+    if (startTime === undefined) { startTime = actx.currentTime; }
     if (startIndex == 0) { this.resetTempoBPM(); } // I think?
     if (this.nextSongPosition !== undefined) {
       startIndex = this.nextSongPosition;
@@ -736,15 +749,59 @@ class XM {
 	this.patterns[this.patternOrder[startIndex]],
 	this.patternOrder[startIndex],
 	startRow,
-	this.playSong.bind(this, startIndex+1, onEnded, loop)
+	this.playSong.bind(this, startIndex+1, onEnded, loop),
+	false,
+	startTime
       );
     } else if (loop) {
       this.playSong(0, onEnded, loop);
     } else { // after last pattern
-      this.stopAllChannels();
+      this.stopAllChannels(startTime);
       if (onEnded !== undefined) {
-	onEnded.call();
+	onEnded(startTime);
       }
     }
+  }
+
+  /** Render song to a .wav file and "download" it. */
+  saveWav() {
+    recordingSpinner.style.display = '';
+    // temporarily switch to an OfflineAudioContext, and turn off showPatterns
+    const oldShowPatterns = showPatternsInput.checked;
+    const oldActx = actx;
+    const oldMasterVolume = this.masterVolume;
+    showPatternsInput.checked = false;
+    actx = new OfflineAudioContext({
+      numberOfChannels: 2,
+      sampleRate: 44100, // Hz
+      length: 10*60*44100 // 10 minutes (TODO compute song duration)
+    });
+    this.masterVolume = actx.createGain();
+    this.masterVolume.gain.value = maxVolume;
+    this.masterVolume.connect(actx.destination);
+    // play the song and render to a buffer
+    let duration = 0;
+    this.playSong(0, (endTime) => {
+      console.log('song ended at ' + endTime);
+      duration = Math.ceil(endTime);
+    });
+    actx.addEventListener('complete', ({ renderedBuffer }) => {
+      console.log('rendering completed');
+      // convert to .wav
+      const blob = audioBufferToWavBlob(renderedBuffer, duration);
+      // set up a download link
+      const a = document.createElement('a');
+      const filename = location.hash.slice(1).replace(/\..*$/,'') + '.wav';
+      a.setAttribute('download', filename);
+      a.setAttribute('href', URL.createObjectURL(blob));
+      // click the link
+      a.click();
+      // switch back to regular AudioContext
+      showPatternsInput.checked = oldShowPatterns;
+      actx = oldActx;
+      this.masterVolume = oldMasterVolume;
+      recordingSpinner.style.display = 'none';
+    });
+    actx.startRendering();
   }
 }

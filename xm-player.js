@@ -12,9 +12,11 @@ const maxVolume = 0.2;
 let showPatternsInput;
 let xmUrlInput;
 let songDiv;
-/* exported songTable,patternOrderDiv,patternsDiv,instrumentsDiv,rowHighlight */
+/* exported songTable,patternOrderDiv,recordingSpinner,patternsDiv,
+ * instrumentsDiv,rowHighlight */
 let songTable;
 let patternOrderDiv;
+let recordingSpinner;
 let patternsDiv;
 let instrumentsDiv;
 let rowHighlight;
@@ -25,6 +27,7 @@ function onBodyLoad() {
   songDiv = document.getElementById('song');
   songTable = document.getElementById('song-header');
   patternOrderDiv = document.getElementById('pattern-order-table');
+  recordingSpinner = document.getElementById('recording-spinner');
   patternsDiv = document.getElementById('patterns');
   instrumentsDiv = document.getElementById('instruments');
   rowHighlight = document.getElementById('row-highlight');

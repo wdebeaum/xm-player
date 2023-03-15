@@ -48,7 +48,7 @@ function once(fn) {
 
 /* exported afterDelay */
 /** Call fn(startTime+delay) at time startTime+delay, or immediately if that
- * has already passed.
+ * has already passed, or if actx is an OfflineAudioContext (which would race).
  * @param {number} startTime
  * @param {number} delay
  * @param {Function} fn
@@ -56,7 +56,10 @@ function once(fn) {
  */
 function afterDelay(startTime, delay, fn) {
   const endTime = startTime + delay;
-  if (actx.currentTime >= endTime) {
+  if (actx instanceof OfflineAudioContext) {
+    fn(endTime);
+    return function() { /* too late */ };
+  } else if (actx.currentTime >= endTime) {
     if (actx.currentTime > lastLag + 10) {
       console.warn('lag');
       lastLag = actx.currentTime;
@@ -64,6 +67,7 @@ function afterDelay(startTime, delay, fn) {
     // Instead of actually calling fn(endTime) immediately, let this function
     // (and its callers) return, and then call fn(endTime). This way we avoid
     // overflowing the stack when we hit a lag spike during an envelope loop.
+    // FIXME? does this still happen? does it happen to OfflineAudioContext?
     const tid = setTimeout(function() { fn(endTime); }, 0);
     return function() { clearTimeout(tid); };
   } else {
