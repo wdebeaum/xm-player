@@ -49,13 +49,14 @@ This is a tool for reading and playing music files in the [XM format](https://en
    - E6x Pattern loop
    - E7x Set tremolo (oscillating volume) waveform
    - E8x either "set note panning position" (like 8xx) or "sync" (like Wxx)
-   - EDx Note delay
    - EEx Pattern delay
    - Lxx Set volume envelope position
    - Pxy Panning slide
    - Rxy Retrigger + volume slide
    - Txy Tremor (interrupting volume)
    - Wxx Sync
+
+See [effects.md](effects.md) for a complete comparison table of the effects supported by FT2, MT, and this software.
 
 ## Some other ways to play XM files
 

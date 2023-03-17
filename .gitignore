@@ -2,6 +2,7 @@
 *.wav
 *.xm
 README.html
+effects.html
 jsdoc/
 old/
 node_modules/
