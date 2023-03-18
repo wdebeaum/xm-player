@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>audio spectrogram generator</title>
+</head>
+<body>
+<label>Audio in: <input type="file"></label>
+<a>download spectrogram image</a>
+<br><canvas style="border: 1px solid blue">
+<script>
+const input = document.getElementsByTagName('input')[0];
+const download = document.getElementsByTagName('a')[0];
+const canvas = document.getElementsByTagName('canvas')[0];
+input.addEventListener('change', change => {
+  const file = change.target.files[0];
+  download.setAttribute('download', file.name.replace(/(\.[^\.\/]+)?$/,'.png'));
+  const reader = new FileReader();
+  reader.addEventListener('load', async (load) => {
+    const arrayBuffer = load.target.result;
+    // set up web audio stuff
+    const actx = new AudioContext();
+    // TODO? separate analysers for left&right channels
+    const analyser = actx.createAnalyser();
+    analyser.smoothingTimeConstant = 0;
+    analyser.connect(actx.destination);
+    const source = actx.createBufferSource();
+    const audioBuffer = await actx.decodeAudioData(arrayBuffer);
+    console.log({audioBuffer});
+    source.buffer = audioBuffer;
+    source.connect(analyser);
+    const freqData = new Uint8Array(analyser.frequencyBinCount);
+    // set up canvas stuff
+    canvas.width = analyser.frequencyBinCount;
+    canvas.height = source.buffer.duration * actx.sampleRate / analyser.fftSize;
+    const rowDuration = analyser.fftSize / actx.sampleRate;
+    const cctx = canvas.getContext('2d');
+    const imageData = cctx.createImageData(canvas.width, 1);
+    let startTime;
+    let y = 0;
+    function frame() {
+      if (y >= canvas.height) { // done
+	canvas.toBlob(blob => {
+	  if (blob === null) {
+	    console.error('canvas.toBlob failed');
+	    return;
+	  }
+	  download.setAttribute('href', URL.createObjectURL(blob));
+	  download.click();
+	});
+      } else { // not done
+	if (actx.currentTime - startTime > y * rowDuration) { // reached new row
+	  analyser.getByteFrequencyData(freqData);
+	  for (let x = 0, i = 0; x < canvas.width; x++) {
+	    imageData.data[i++] = freqData[x];
+	    imageData.data[i++] = freqData[x];
+	    imageData.data[i++] = freqData[x];
+	    imageData.data[i++] = 0xff;
+	  }
+	  cctx.putImageData(imageData, 0, y);
+	  y++;
+	}
+	requestAnimationFrame(frame);
+      }
+    }
+    // start everything
+    startTime = actx.currentTime;
+    source.start();
+    requestAnimationFrame(frame);
+  });
+  reader.readAsArrayBuffer(file);
+});
+</script>
+</body>
+</html>

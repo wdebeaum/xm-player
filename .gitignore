@@ -1,8 +1,9 @@
 .*.swp
 *.wav
-*.xm
+*.WAV
 README.html
 effects.html
+test/XMP/
 jsdoc/
 old/
 node_modules/
