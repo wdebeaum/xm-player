@@ -347,9 +347,9 @@ class Channel {
       case 0x11: { // global volume slide
 	const hi = (effectParam >> 4);
 	const lo = (effectParam & 0xf);
-	const upDown = (hi ? true : false);
-	const hiLo = (upDown ? hi : lo);
-	this.xm.volumeSlide(when, upDown, hiLo);
+	const up = (hi ? true : false);
+	const hiLo = (up ? hi : lo);
+	this.xm.volumeSlide(when, up, hiLo);
 	break;
       }
       default:
@@ -369,8 +369,8 @@ class Channel {
     const oldPbr = this.nextPbr;
     const hi = (effectParam >> 4);
     const lo = (effectParam & 0xf);
-    const upDown = (hi ? true : false);
-    const hiLo = (upDown ? hi : lo);
+    const up = (hi ? true : false);
+    const hiLo = (up ? hi : lo);
     switch (effectType) {
       case 0x0: // arpeggio
 	// theoretically it would be OK if we did this even with effectParam==0,
@@ -414,11 +414,11 @@ class Channel {
       case 0x5: // porta towards note and volume slide
 	this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate,
 			this.targetPbr);
-	this.volumeSlide(when, upDown, hiLo);
+	this.volumeSlide(when, up, hiLo);
 	break;
       case 0x6: // vibrato and volume slide
 	this.triggerVibrato(when);
-	this.volumeSlide(when, upDown, hiLo);
+	this.volumeSlide(when, up, hiLo);
 	break;
       case 0x7: break; // TODO tremolo
       case 0x8: // set panning
@@ -426,7 +426,7 @@ class Channel {
 	break;
       // case 0x9: break; sample offset see applyCommand
       case 0xa: // volume slide
-	this.volumeSlide(when, upDown, hiLo);
+	this.volumeSlide(when, up, hiLo);
 	break;
       case 0xb: // jump to song position
 	this.xm.nextSongPosition = effectParam;
@@ -520,11 +520,11 @@ class Channel {
 	break;
       case 0x6: // volume slide down
       case 0x7: // volume slide up
-	this.volumeSlide(when, (hi == 0x6), lo);
+	this.volumeSlide(when, (hi == 0x7), lo);
 	break;
       case 0x8: // fine volume slide down
       case 0x9: // fine volume slide up
-	this.volumeSlide(when, (hi == 0x6), lo / this.xm.currentTempo);
+	this.volumeSlide(when, (hi == 0x9), lo / this.xm.currentTempo);
 	break;
       case 0xa: // set vibrato speed
 	this.setVibratoTremolo(when, 'vibrato', 'rate', (lo << 2), true);
@@ -602,10 +602,10 @@ class Channel {
     }
   }
 
-  /** Slide volume in ±64ths of full volume per tick.
+  /** Slide volume.
    * @param {number} when
-   * @param {boolean} up
-   * @param {number} rate
+   * @param {boolean} up - if true, slide up, else slide down
+   * @param {number} rate - rate of slide in 64ths of full volume per tick
    */
   volumeSlide(when, up, rate) {
     // FIXME how does this interact with instrument volume fadeout?
