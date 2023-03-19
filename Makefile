@@ -1,12 +1,12 @@
-all: lint README.html jsdoc
+all: lint README.html effects.html jsdoc
 
-README.html: md2html.sh README.md
+%.html: md2html.sh %.md
 	if ./$+ >$@ ; \
 	then true ; \
 	else \
 	  rm -f $@ ; \
 	  echo ; \
-	  echo "Making README.html failed, but that's OK, everything else will still work. If you really want README.html, make sure you have commonmarker installed." ; \
+	  echo "Making $@ failed, but that's OK, everything else will still work. If you really want $*, make sure you have commonmarker installed." ; \
 	fi
 
 jsdoc: node_modules/jsdoc/package.json README.md *.js

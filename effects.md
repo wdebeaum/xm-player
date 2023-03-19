@@ -1,3 +1,4 @@
+<style>table, th, td { border: 1px solid black; border-collapse: collapse; }</style>
 FT2 = FastTracker 2  
 MT = MilkyTracker  
 XMP = xm-player  
