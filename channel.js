@@ -561,6 +561,7 @@ class Channel {
     }
     const rowEndTime = when + (this.xm.rowDuration() * durationFactor);
     if (this.bs !== undefined) {
+      // FIXME? make sure it's exactly oldPbr at "when", in case it's in the future
       this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
     }
     this.nextPbr = newPbr;
@@ -620,8 +621,8 @@ class Channel {
     }
     this.volume = newVolume; // for next row
     if (this.notePhase != 'off') {
-      // FIXME should I make sure it's exactly oldVolume at "when", in case it's
-      // not now?
+      // make sure it's exactly oldVolume at "when", in case it's in the future
+      this.volumeNode.gain.setValueAtTime(oldVolume / 0x40, when);
       this.volumeNode.gain.linearRampToValueAtTime(
 	  newVolume / 0x40, when + duration);
     }
