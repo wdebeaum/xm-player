@@ -1,4 +1,4 @@
-all: lint README.html effects.html jsdoc
+all: lint README.html effects.html test/README.html jsdoc
 
 %.html: md2html.sh %.md
 	if ./$+ >$@ ; \
