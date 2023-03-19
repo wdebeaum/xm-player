@@ -561,7 +561,8 @@ class Channel {
     }
     const rowEndTime = when + (this.xm.rowDuration() * durationFactor);
     if (this.bs !== undefined) {
-      // FIXME? make sure it's exactly oldPbr at "when", in case it's in the future
+      // make sure it's exactly oldPbr at "when", in case it's in the future
+      this.bs.playbackRate.setValueAtTime(oldPbr, when);
       this.bs.playbackRate.exponentialRampToValueAtTime(newPbr, rowEndTime);
     }
     this.nextPbr = newPbr;
