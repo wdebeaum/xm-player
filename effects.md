@@ -18,7 +18,7 @@ disp = how it appears on the screen
 |  ✔  | ✔  |  ~  |   8x |   Dx |   ▼x | Fine volume slide down
 |  ✔  | ✔  |  ~  |   9x |   Ux |   ▲x | Fine volume slide up
 |  ✔  | ✔  |  ✔  |   Ax |   Sx |   Sx | Set vibrato speed
-|  ✔  | ✔  |  ✔  |   Bx |   Vx |   Vx | Perform vibrato and set depth
+|  ✔  | ✔  |  ~  |   Bx |   Vx |   Vx | Perform vibrato and set depth
 |  ✔  | ✔  |  ✔  |   Cx |   Px |   Px | Set note panning position
 |  ✔  | ✔  |  ✖  |   Dx |   Lx |   ◀x | Panning slide left
 |  ✔  | ✔  |  ✖  |   Ex |   Rx |   ▶x | Panning slide right
