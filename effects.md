@@ -18,7 +18,7 @@ disp = how it appears on the screen
 |  ✔  | ✔  |  ~  |   8x |   Dx |   ▼x | Fine volume slide down
 |  ✔  | ✔  |  ~  |   9x |   Ux |   ▲x | Fine volume slide up
 |  ✔  | ✔  |  ✔  |   Ax |   Sx |   Sx | Set vibrato speed
-|  ✔  | ✔  |  ~  |   Bx |   Vx |   Vx | Perform vibrato and set depth
+|  ✔  | ✔  |  ✔  |   Bx |   Vx |   Vx | Perform vibrato and set depth
 |  ✔  | ✔  |  ✔  |   Cx |   Px |   Px | Set note panning position
 |  ✔  | ✔  |  ✖  |   Dx |   Lx |   ◀x | Panning slide left
 |  ✔  | ✔  |  ✖  |   Ex |   Rx |   ▶x | Panning slide right
@@ -41,7 +41,7 @@ disp = how it appears on the screen
 |  ✔  | ✔  |  ~  |  E1x |  E1x |  E1x | Fine portamento up
 |  ✔  | ✔  |  ~  |  E2x |  E2x |  E2x | Fine portamento down
 |  ✔  | ✖  |  ✖  |  E3x |  E3x |  E3x | Glissando control
-|  ✔  | ✖  |  ✖  |  E4x |  E4x |  E4x | Vibrato control
+|  ✔  | ✖  |  ✔  |  E4x |  E4x |  E4x | Vibrato control
 |  ✔  | ✔  |  ✖  |  E5x |  E5x |  E5x | Set note fine-tune
 |  ✔  | ✔  |  ✖  |  E6x |  E6x |  E6x | Pattern loop
 |  ✔  | ✖  |  ✖  |  E7x |  E7x |  E7x | Tremolo control

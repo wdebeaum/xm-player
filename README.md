@@ -44,7 +44,6 @@ This is a tool for reading and playing music files in the [XM format](https://en
  - Effects:
    - 7xy Tremolo (oscillating volume)
    - E3x Glissando (discrete pitch slide)
-   - E4x Set vibrato (oscillating pitch) waveform (it stays at the instrument's setting)
    - E5x Set note finetune (ditto)
    - E6x Pattern loop
    - E7x Set tremolo (oscillating volume) waveform

@@ -49,6 +49,8 @@
   > the gist seems to be that "depth" means amplitude and "rate" means frequency (as you'd expect), and "sweep" means the duration of the ramp up to full "depth" (wat?)
   > units, units, my kingdom for some units...
 ? all the remaining effects (prioritized by what I see used most in others' music)
+# don't continue effect vibrato after effect command goes away (revert to instrument vibrato settings) (for both volume column and effect column)
+# make volume column (but not effect column) vibrato leave pitch where it is when it ends, instead of reverting to main pitch (seems like a bug, but FT2 does it and MT replicates it)
 = bugs
  ? something wrong with porta in HYPERMMX.XM pattern 41, 4th and 5th channels
   > might have something to do with Amiga frequency table

@@ -35,7 +35,7 @@ function noteTooltips(note) {
       case 0x03:
         return `portamento towards this note (instead of triggering it) by ${effParam} 16ths of a semitone per tick in this row`;
       case 0x04:
-        return `vibrato: vary pitch ±${lo} / 0xf semitone, at ${hi} / 0x40 cycles per tick`;
+        return `vibrato: vary pitch ±${lo} / 0xf whole tone, at ${hi} / 0x40 cycles per tick`;
       case 0x05:
         return `portamento towards this note (instead of triggering it) at previously set speed, and volume slide ${upDown} / 0x40 of full volume, per tick`;
       case 0x06:
@@ -183,7 +183,7 @@ function noteTooltips(note) {
       case 0xa0: // S
         return `set vibrato speed to ${volParam} / 0x40 cycles per tick`;
       case 0xb0: // V
-        return `vibrato: vary pitch ±${volParam} / 0xf semitone, at previous speed`;
+        return `vibrato: vary pitch ±${volParam} / 0xf whole tone, at previous speed`;
       case 0xc0: // P
         return `set panning to ${volParam} / 0xf right`;
       case 0xd0: // L

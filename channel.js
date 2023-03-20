@@ -113,24 +113,27 @@ class Channel {
     this.volume = 0x40; // silent 0x00 - 0x40 full
     this.panning = 0x80; // left 0x00 - 0xff right
     this.portamentoRate = 0; // 16ths of a semitone per tick
-    this.vibrato = {
+    this.dynamicVibrato = {
       on: false,
+      sustained: false, // whether a command this row kept it on
+      // whether to continue offsetting the pitch after vibrato is discontinued
+      continuePitchOffset: false,
       type: 0, // see vibratoTypes
       sweep: 0, // ticks between start and full depth
-      depth: 0, // 16ths of a semitone variation from original pitch
+      depth: 0, // 64ths of a semitone variation from original pitch
       rate: 0 // 256ths of a cycle per tick
     };
     this.tremolo = {
       on: false,
       type: 0, // see vibratoTypes
       // no sweep
-      depth: 0, // 16ths of a semitone variation from original pitch
+      depth: 0, // 16ths of full volume?
       rate: 0 // 256ths of a cycle per tick
     };
     // Web Audio API stuff
     this.nextPbr = 1.0; // playback rate at start of next row
     this.targetPbr = 1.0; // target of tone porta, so we stop when we get there
-    // TODO stop/disconnect these if they exist already
+    // TODO stop these if they exist already
     this.vibratoNode = undefined; // oscillator
     this.vibratoAmplitudeNode = undefined; // gain
     this.tremoloNode = undefined; // oscillator
@@ -182,12 +185,6 @@ class Channel {
       computePlaybackRate(noteNum, this.sample.relativeNoteNumber,
 			  this.sample.finetune);
     this.targetPbr = this.nextPbr;
-    const vibratoOn =
-      (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
-    this.vibrato.type = this.instrument.vibratoType;
-    this.vibrato.sweep = this.instrument.vibratoSweep;
-    this.vibrato.depth = this.instrument.vibratoDepth;
-    this.vibrato.rate = this.instrument.vibratoRate;
     // set up node graph
     this.volumeNode = actx.createGain();
     this.volumeNode.connect(this.xm.masterVolume);
@@ -232,7 +229,7 @@ class Channel {
     // trigger everything
     if ('volumeEnvelope' in this.instrument) { this.triggerEnvelope(when, 'volume'); }
     if ('panningEnvelope' in this.instrument){ this.triggerEnvelope(when, 'panning'); }
-    if (vibratoOn) { this.triggerVibrato(when); }
+    this.triggerAutoVibrato(when, true);
     // trigger sample
     if (offsetInBytes != 0) {
       const offsetInSamples = offsetInBytes / this.sample.bytesPerSample;
@@ -288,6 +285,7 @@ class Channel {
    */
   applyCommand(when, note) {
     const [noteNum, instrumentNum, volume, effectType, effectParam] = note;
+    this.dynamicVibrato.sustained = false;
     // TODO if effectParam==0 set it to prev value for some types: 1-7, A, E1-2, EA-B, H (0x11), P, R, X1, X2 (prev value for that type, or any type? what about Exx with part of the type in the param?) (also do this for tooltips)
     this.applyGlobalEffect(when, effectType, effectParam);
     let sampleOffset = 0;
@@ -323,6 +321,10 @@ class Channel {
     }
     this.applyVolume(when, volume);
     this.applyEffect(when, effectType, effectParam);
+    // if we failed to keep dynamic vibrato on, stop doing it
+    if (this.dynamicVibrato.on && !this.dynamicVibrato.sustained) {
+      this.discontinueDynamicVibrato(when);
+    }
   }
 
   /** Apply a global effect.
@@ -406,18 +408,21 @@ class Channel {
 	this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate,
 			this.targetPbr);
 	break;
-      case 0x4: // vibrato
-	// note: these triggerVibrato automatically if appropriate
-	if (lo > 0) { this.setVibratoTremolo(when, 'vibrato', 'depth', lo); }
-	if (hi > 0) { this.setVibratoTremolo(when, 'vibrato', 'rate', (hi << 2));}
+      case 0x4: { // vibrato
+	const depth = (lo << 3);
+	const rate = (hi << 2);
+	this.dynamicVibrato.continuePitchOffset = false;
+	this.continueOrTriggerDynamicVibrato(when, rate, depth);
 	break;
+      }
       case 0x5: // porta towards note and volume slide
 	this.portamento(when, (this.targetPbr > oldPbr), this.portamentoRate,
 			this.targetPbr);
 	this.volumeSlide(when, up, hiLo);
 	break;
       case 0x6: // vibrato and volume slide
-	this.triggerVibrato(when);
+	this.dynamicVibrato.continuePitchOffset = false;
+	this.continueOrTriggerDynamicVibrato(when, 0, 0);
 	this.volumeSlide(when, up, hiLo);
 	break;
       case 0x7: break; // TODO tremolo
@@ -446,7 +451,12 @@ class Channel {
 	  case 0x2: // fine porta down
 	    this.portamento(when, (hi == 0x1), lo / this.xm.currentTempo);
 	    break;
-	  // 0x3-0x8 TODO
+	  // 0x3 glissando control TODO
+	  case 0x4: // vibrato type
+	    this.dynamicVibrato.type = lo;
+	    this.applyVibratoDepthAndType(when);
+	    break;
+	  // 0x5-0x8 TODO
 	  case 0x9: { // re-trigger note
 	    // NOTE: this only handles *re*-triggering the note; if you just
 	    // have this effect on a row without a note, the already-playing
@@ -527,11 +537,17 @@ class Channel {
 	this.volumeSlide(when, (hi == 0x9), lo / this.xm.currentTempo);
 	break;
       case 0xa: // set vibrato speed
-	this.setVibratoTremolo(when, 'vibrato', 'rate', (lo << 2), true);
+	this.dynamicVibrato.rate = (lo << 2);
+	if (this.dynamicVibrato.on) {
+	  this.applyVibratoRate(when, this.dynamicVibrato.rate);
+	}
 	break;
-      case 0xb: // perform vibrato and set depth
-	this.setVibratoTremolo(when, 'vibrato', 'depth', lo);
+      case 0xb: { // perform vibrato and set depth
+        const depth = (lo << 3);
+	this.dynamicVibrato.continuePitchOffset = true;
+	this.continueOrTriggerDynamicVibrato(when, 0, depth);
 	break;
+      }
       case 0xc: // set panning
 	this.setPanning(when, (lo << 4));
 	break;
@@ -588,11 +604,7 @@ class Channel {
     this.volume = volume;
     if (this.notePhase != 'off') {
       const volumeFraction = this.getFadeoutVolume(when, volume / 0x40);
-      if (when > actx.currentTime) {
-	this.volumeNode.gain.setValueAtTime(volumeFraction, when);
-      } else {
-	this.volumeNode.gain.value = volumeFraction;
-      }
+      this.volumeNode.gain.setValueAtTime(volumeFraction, when);
       if (this.notePhase == 'release' && this.instrument.volumeFadeout != 0) {
 	// FIXME what if BPM changes?
 	const fadeoutEndTime = // time when volume reaches 0
@@ -636,66 +648,7 @@ class Channel {
   setPanning(when, panning) {
     this.panning = panning;
     if (this.notePhase != 'off' && haveStereoPanner) {
-      if (when > actx.currentTime) {
-	this.panningNode.pan.setValueAtTime((panning - 0x80) / 0x80, when);
-      } else {
-	this.panningNode.pan.value = (panning - 0x80) / 0x80;
-      }
-    }
-  }
-
-  /** Set a vibrato or tremolo (depending on "which") parameter (depending on
-   * "key") to "val". Automatically set this[which].on based on the new
-   * settings.
-   * Keys and vals are in terms of autovibrato, though this is used for dynamic
-   * vibrato; pay attention to units and the options for "type".
-   * @param {number} when
-   * @param {string} which - 'vibrato' or 'tremolo'
-   * @param {string} key - one of 'on', 'type', 'sweep', 'depth', or 'rate'
-   * @param {boolean|number} val
-   * @param {boolean} dontTrigger
-   */
-  setVibratoTremolo(when, which, key, val, dontTrigger) {
-    this[which][key] = val;
-    if (this[which].on) { // already on
-      if (this[which].depth != 0 && this[which].rate != 0) { // and staying on
-	// adjust AudioParams
-	// TODO factor this out and reuse in trigger{Vibrato|Tremolo}
-	switch (key) {
-	  case 'depth':
-	    switch (which) {
-	      case 'vibrato': {
-		// convert 16ths of a semitone to cents
-		let gain = val * 100 / 16;
-		if (this.vibrato.type == 4) { // saw down
-		  gain = -gain;
-		}
-		this.vibratoAmplitudeNode.gain.value = gain;
-		break;
-	      }
-	      case 'tremolo':
-		// TODO
-		break;
-	    }
-	    break;
-	  case 'rate': {
-	    // convert 256ths of a cycle per tick to Hz
-	    const freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
-	    this.vibratoNode.frequency.value = freq;
-	    break;
-	  }
-	  case 'type':
-	    // TODO
-	    break;
-	}
-      } else { // new setting turns it off
-	this['cut' + which.slice(0,1).toUpperCase() + which.slice(1)](when);
-      }
-    } else { // currently off
-      if ((!dontTrigger) &&
-	  this[which].depth != 0 && this[which].rate != 0) { // but turning on
-	this['trigger' + which.slice(0,1).toUpperCase() + which.slice(1)](when);
-      } // else staying off
+      this.panningNode.pan.setValueAtTime((panning - 0x80) / 0x80, when);
     }
   }
 
@@ -798,61 +751,186 @@ class Channel {
     }
   }
 
-  /** Set up nodes and trigger vibrato.
-   * @param {number} when
-   */
-  triggerVibrato(when) {
-    // get rid of previous vibrato
-    if (this.vibrato.on) { this.cutVibrato(when); }
-    this.vibrato.on = true;
+  /** Make the audio nodes involved in (auto or dynamic) vibrato. */
+  makeVibratoNodes() {
     this.vibratoAmplitudeNode = actx.createGain();
     this.vibratoAmplitudeNode.connect(this.bs.detune);
-    let gain = this.vibrato.depth * 16 / 100; // cents
     this.vibratoNode = actx.createOscillator();
     this.vibratoNode.connect(this.vibratoAmplitudeNode);
-    // convert 256ths of a cycle per tick to Hz
-    const freq = this.vibrato.rate / (this.xm.tickDuration() * 256);
-    this.vibratoNode.frequency.value = freq;
-    switch (this.vibrato.type) {
-      case 0:
-	this.vibratoNode.type = "sine";
-	break;
-      case 1:
-	this.vibratoNode.type = "square";
-	break;
-      case 3: // saw down (negative saw up)
-	gain = -gain;
-	// fall through
-      case 2: // saw up
-	this.vibratoNode.type = "sawtooth";
-	break;
-      default:
-	console.warn('bogus vibrato type ' + this.vibrato.type);
-    }
-    if (this.vibrato.sweep == 0) {
-      this.vibratoAmplitudeNode.gain.value = gain;
-    } else {
-      const sweepEndTime = when + this.vibrato.sweep * this.xm.tickDuration();
+  }
+
+  /** Make (auto) vibrato depth ramp up after a note is triggered.
+   * @param {number} when - start time of sweep
+   * @param {number} sweep - duration of sweep in ticks
+   * @param {number} gain - gain value at end of sweep
+   */
+  triggerVibratoSweep(when, sweep, gain) {
+    if (sweep != 0) {
+      this.vibratoAmplitudeNode.gain.cancelScheduledValues(when);
+      // FIXME what if tickDuration changes during sweep?
+      const sweepEndTime = when + sweep * this.xm.tickDuration();
       this.vibratoAmplitudeNode.gain.value = 0;
       this.vibratoAmplitudeNode.gain.
 	linearRampToValueAtTime(gain, sweepEndTime);
     }
-    this.vibratoNode.start(when);
+  }
+
+  /** Apply the given depth and type parameters to the current vibrato nodes,
+   * if they exist.
+   * @param {number} when
+   * @param {number} [depth=this.dynamicVibrato.depth] - peak amplitude of
+   * vibrato wave (max abs value) in 64ths of a semitone (or peak-to-peak
+   * amplitude in 64ths of a whole tone)
+   * @param {number} [type=this.dynamicVibrato.type] - 0=sine, 1=saw, 2=square;
+   * type|4 means don't retrigger vibrato wave for new notes
+   * @return {number} - gain to be passed to triggerVibratoSweep
+   */
+  applyVibratoDepthAndType(when, depth, type) {
+    if (this.vibratoNode === undefined) { return 0; }
+    if (depth === undefined) { depth = this.dynamicVibrato.depth; }
+    if (type === undefined) { type = this.dynamicVibrato.type; }
+    // depth
+    // convert 64ths of a semitone to cents
+    let gain = depth * 100 / 64;
+    if (type & 1) { // ramp/sawtooth down
+      gain = -gain;
+    }
+    this.vibratoAmplitudeNode.gain.setValueAtTime(gain, when);
+    // type
+    switch (type & 0x3) {
+      case 0: this.vibratoNode.type = 'sine'; break;
+      case 1: this.vibratoNode.type = 'sawtooth'; break;
+      case 2: this.vibratoNode.type = 'square'; break;
+      // 4 undefined, ignore
+    }
+    return gain;
+  }
+
+  /* Apply the given rate parameter to the current vibrato nodes, if they
+   * exist.
+   * @param {number} when
+   * @param {number} rate - frequency of vibrato wave in 256ths of a cycle per
+   * tick
+   */
+  applyVibratoRate(when, rate) {
+    if (this.vibratoNode === undefined) { return; }
+    // convert 256ths of a cycle per tick to Hz
+    const freq = rate / (this.xm.tickDuration() * 256);
+    this.vibratoNode.frequency.setValueAtTime(freq, when);
+  }
+
+  /** Set up nodes and trigger autovibrato (vibrato from instrument settings)
+   * if appropriate.
+   * @param {number} when
+   * @param {boolean} doSweep - true if this is really the start of a note so
+   * we should do the vibrato sweep up to full depth if applicable; false if
+   * we're just returning to autovibrato from dynamic vibrato on an already
+   * playing note
+   */
+  triggerAutoVibrato(when, doSweep) {
+    // make sure we have the appropriate vibrato nodes set up if any
+    const oldOn = (this.vibratoNode !== undefined);
+    const newOn =
+      (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
+    const retrigger = !(this.instrument.vibratoType & 4);
+    const makeNew = (retrigger || !oldOn);
+    if (oldOn && retrigger) { this.cutVibrato(when); }
+    if (!newOn) { return; }
+    if (makeNew) { this.makeVibratoNodes(); }
+    // set parameters of those nodes from instrument
+    this.applyVibratoRate(when, this.instrument.vibratoRate);
+    const gain = this.applyVibratoDepthAndType(when,
+      this.instrument.vibratoDepth, this.instrument.vibratoType);
+    if (doSweep) {
+      this.triggerVibratoSweep(when, this.instrument.vibratoSweep, gain);
+    }
+    if (makeNew) { this.vibratoNode.start(when); }
+  }
+
+  /** Set up nodes and trigger dynamic vibrato (vibrato from volume/effect
+   * column commands).
+   * @param {number} when
+   */
+  triggerDynamicVibrato(when) {
+    // make sure we have the appropriate vibrato nodes set up if any
+    const oldOn = (this.vibratoNode !== undefined);
+    const newDynamicOn =
+      (this.dynamicVibrato.depth != 0 && this.dynamicVibrato.rate != 0);
+    const newAutoOn =
+      (this.instrument.vibratoDepth != 0 && this.instrument.vibratoRate != 0);
+    const retrigger = !(this.dynamicVibrato.type & 4);
+    const makeNew = (retrigger || !oldOn);
+    if (newAutoOn && !newDynamicOn) { return; } // keep doing autovibrato
+    if (oldOn && retrigger) { this.cutVibrato(when); }
+    if (!newDynamicOn) { return; }
+    if (makeNew) { this.makeVibratoNodes(); }
+    this.dynamicVibrato.on = true;
+    this.dynamicVibrato.sustained = true;
+    // set parameters of those nodes from this.dynamicVibrato
+    this.applyVibratoRate(when, this.dynamicVibrato.rate);
+    this.applyVibratoDepthAndType(when);
+    // NOTE: no sweep
+    if (makeNew) { this.vibratoNode.start(when); }
+  }
+
+  /** Continue currently playing dynamic vibrato, or trigger it if none, and
+   * optionally set rate and depth parameters.
+   * @param {number} when
+   * @param {number} rate - see applyVibratoRate; if 0, use previous value
+   * @param {number} depth - see applyVibratoDepthAndType; if 0, use previous
+   * value
+   */
+  continueOrTriggerDynamicVibrato(when, rate, depth) {
+    if (rate != 0) {
+      this.dynamicVibrato.rate = rate;
+    }
+    if (depth != 0) {
+      this.dynamicVibrato.depth = depth;
+    }
+    if (this.dynamicVibrato.on) { // continue
+      this.dynamicVibrato.sustained = true;
+      this.applyVibratoRate(when, this.dynamicVibrato.rate);
+      this.applyVibratoDepthAndType(when);
+    } else { // trigger
+      this.triggerDynamicVibrato(when);
+    }
   }
 
   /** Stop vibrato and tear down nodes.
    * @param {number} when
    */
   cutVibrato(when) {
-    this.vibrato.on = false;
+    this.dynamicVibrato.on = false;
+    // work around bug in both FF and Chrome that prevents oscillators with
+    // frequency 0 from actually stopping
+    this.vibratoNode.frequency.setValueAtTime(when, 5);
     this.vibratoNode.stop(when);
-    this.vibratoAmplitudeNode.disconnect();
-    this.vibratoNode.disconnect();
     this.vibratoAmplitudeNode = undefined;
     this.vibratoNode = undefined;
   }
 
-  /** Set up nodes and trigger tremolo.
+  /** Stop doing dynamic vibrato (assumes we're doing it). May preserve phase
+   * and/or pitch offset, depending on vibrato waveform type and the last
+   * command used to do dynamic vibrato. Switch back to autovibrato if it's
+   * defined.
+   * @param {number} when
+   */
+  discontinueDynamicVibrato(when) {
+    this.dynamicVibrato.on = false;
+    if (this.dynamicVibrato.continuePitchOffset) {
+      this.vibratoNode.frequency.setValueAtTime(when, 0);
+    } else if ((this.dynamicVibrato.type & 4)) { // continue wave
+      this.vibratoNode.frequency.setValueAtTime(when, 0);
+      this.vibratoAmplitudeNode.gain.setValueAtTime(when, 0);
+    } else { // retrigger
+      this.cutVibrato(when);
+    }
+    this.triggerAutoVibrato(when, false);
+  }
+
+  // TODO apply*Tremolo functions parallel to apply*Vibrato
+
+  /** Set up nodes and trigger (dynamic) tremolo.
    * @param {number} when
    */
   triggerTremolo(when) {

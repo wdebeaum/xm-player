@@ -394,7 +394,7 @@ class XM {
     this.drawVolumePanning(instr, 'panning');
     if (instr.vibratoType || instr.vibratoSweep ||
 	instr.vibratoDepth || instr.vibratoRate) {
-      appendLine(instrumentsDiv, `Vibrato: ${vibratoTypes[instr.vibratoType]}(sweep=reach full depth at ${instr.vibratoSweep} ticks after vibrato start; depth = ±${instr.vibratoDepth} / 16 semitones; rate=${instr.vibratoRate} / 256 cycles per tick)`);
+      appendLine(instrumentsDiv, `Vibrato: ${vibratoTypes[instr.vibratoType]}(sweep=reach full depth at ${instr.vibratoSweep} ticks after vibrato start; depth = ±${instr.vibratoDepth} / 64 semitones; rate=${instr.vibratoRate} / 256 cycles per tick)`);
     }
     if (instr.volumeFadeout > 0) {
       appendLine(instrumentsDiv, `Volume fadeout: reduce volume by ${instr.volumeFadeout} / 32768 of what its full volume would be otherwise, per tick after note release`);
