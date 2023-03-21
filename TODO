@@ -1,75 +1,21 @@
-# add onhashchange handler so that when we edit the url to go to another song, it actually loads the new song when I press enter, without me having to reload the whole page with the reload button
-# pitch is off relative to jsxm; check sign of finetune/relnote?
-# sometimes lags, particularly noticeable in mysong66.xm
- # avoid using actx.currentTime and instead pass along the time it's supposed to be as a starting point
-# mixes too loud and clips
-# Chrome mysteriously only plays the first note (row?)
-# effects used in my music:
- # portamento down (0x02) (mysong77.xm)
-  > parameter is Δfreq in 16ths of a semitone (32nds of a tone?) per tick
-  # something's wrong with this in ~/othersmusic/mod/fromdemos/chip.xm pattern 6
- # set note panning position (0x08) (mysong54.xm, mysong79.xm)
- # set song speed/BPM (0x0f) (mysong01c.xm, mysong70b.xm, stargate.xm)
- # arpeggio (0x00) (mysong00a.xm, I actually used this thinking it was the volume, I think)
-# add row numbers to patterns
-# scroll to and highlight pattern row currently playing
-# allow loading new song without reloading the page
-# fix clicks, very noticeable in mysong60.xm
- > BiquadFilterNode doesn't work, clicks are at all frequencies
-# degenerate volume envelopes don't behave correctly (spooky00.xm instrument 6)
-# more control over playing:
- # stop
- # loop
-# add alternate input to fetch songs from a (CORS-enabled or local) URL
- # when there's a fragment ID after the xm-player.html URL, use it to fill that input, and automatically fetch
-# render to wav/mp3/etc.
- - in a Data URI so user can save it
- - or just to get more accurate playback (but without scrolling the page because that would still be inaccurate and thus lose sync with the pre-rendered version)
-# interpret effects in tooltips
- # include units whenever possible
-  # figure out what vibrato/tremolo "speed" means
-- reorganize so that:
- # reading is separate from displaying
- # displaying uses appendChild as opposed to innerHTML+= more often
- # Channels keep note/effect state instead of PlayingNotes
- # Channels are always present, but not always in a note-on state
- # note-on-ness states are: sustained, released but still playing, not playing
- ? Channels in a playing state always have the same AudioNode graph, just different parameters (in non-playing state this can be freed)
- ? process per-tick instead of per-row (or can this really be accomplished by scheduling parameter changes within each row? I think probably not because some per-tick effects might interact with each other)
-- get rid of lag between patterns by propagating when/startTime between them
-# panning envelopes
-# envelope sustain/loop
-# volume fadeout
-# volume slide
-# instrument vibrato
- # find a reference for how this works; the docs I have don't say
-  > https://github.com/STRd6/Milky-Tracker/blob/master/resources/reference/xm-form.txt
-  > https://github.com/Artefact2/libxm/blob/master/src/play.c
-  > ... mikmod (close the tab, oops)
-  > the gist seems to be that "depth" means amplitude and "rate" means frequency (as you'd expect), and "sweep" means the duration of the ramp up to full "depth" (wat?)
-  > units, units, my kingdom for some units...
-? all the remaining effects (prioritized by what I see used most in others' music)
-# don't continue effect vibrato after effect command goes away (revert to instrument vibrato settings) (for both volume column and effect column)
-# make volume column (but not effect column) vibrato leave pitch where it is when it ends, instead of reverting to main pitch (seems like a bug, but FT2 does it and MT replicates it)
-= bugs
- ? something wrong with porta in HYPERMMX.XM pattern 41, 4th and 5th channels
-  > might have something to do with Amiga frequency table
- - releasing a note with a looping envelope can cause stack overflow?!
-  > thought I fixed this, guess I didn't... gateways{1,2}.xm do it
- - multiple bugs in charons-hornpipe.xm:
-  X note off not working/not timed correctly (end of row instead of beginning?)
-   > only in Firefox
-   > and in jsxm to some extent?
-   > this is bug 1171438 again, I think
-  - extended portamento (3xx) causes notes not to even play (jsxm does this too?!)
-   > jsxm also seems to bitcrush the whistle; FT2 does neither of these
-   > in both Chrome and Firefox
-   > maybe same root cause as HYPERMMX problem above?
-   > fixed this in the song by not having an envelope on porta'd notes
-  - sounds like the tempo changes (Fxx) in pattern 3 cause the whistle notes to be doubled somehow? suspect something to do with rescheduling notes not descheduling the old versions
-   > only in Firefox?
-   > I think this is the Fxx bug in the readme
-  - volume slide down in volume column is too slow
-   > volume slide (should) happens tick by tick; fine volume slide happens on one of the ticks in a row (the first), and regular volume slide happens on all the other ticks (same whether in volume column or effect column)
-   > anyway the rate is such that at speed/tempo 1, nothing happens, at speed 2 it's in 64ths of max volume per *row*, and at speed 3 it's twice what it was at speed 2, etc.
-   > panning slide and global volume slide work similarly
+> see also bugs section in README
+- process per-tick instead of per-row
+ > "fine" versions of things do it on the first tick of a row, regular versions do it on all but the first tick of a row, all at the same rate during a tick
+ > e.g. volume slide is in 64ths of max volume per tick, fine volume slide is effectively that per row, and regular volume slide is effectively that*(songspeed-1) per row
+ - make Channel#applyCommand apply for a specific tick within a row
+ - make Channel#triggerEnvelope schedule a *tick* at a time (not a row at a time as the comment suggests)
+ - make a XM#playTick instead of XM#playRow
+  . make playRow more like playPattern and playSong
+  . do a simpler loop assuming we won't stop or jump in the middle of a row
+ - include info on which ticks things happen on in note-tooltips.js
+- test portamento effects
+ - get speed right (think it's slightly too fast?)
+- test EDx note delay effect
+ - fix it if that's what's breaking inauglam pattern 15 chords
+- test Fxx tempo change effect
+ - fix it if that's what's causing note doubling in charons-hornpipe from pattern 3 on
+  > only happens in Firefox live playing
+? test and implement all the remaining effects (prioritized by what I see used most in others' music)
+? reorganize so that Channels in a playing state always have the same AudioNode graph, just different parameters (in non-playing state this can be freed)
+? something wrong with porta in HYPERMMX.XM pattern 41, 4th and 5th channels
+ > might have something to do with Amiga frequency table (not sure why I thought that originally, but I'll keep this note here just in case...)
