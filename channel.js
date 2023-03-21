@@ -667,12 +667,13 @@ class Channel {
       // FIXME what if BPM changes? should we only be scheduling the envelope a row at a time?
       const delay = envelope[i][0] * this.xm.tickDuration();
       const targetTime = when + delay;
-      if (targetTime >= actx.currentTime) {
-	envelopeNode[param].linearRampToValueAtTime(
-	  ((which == 'volume') ?
-	    (envelope[i][1] / 64) : ((envelope[i][1] - 32) / 32)),
-	  targetTime
-	);
+      const targetValue =
+        ((which == 'volume') ?
+	  (envelope[i][1] / 64) : ((envelope[i][1] - 32) / 32));
+      if (targetTime < actx.currentTime) { // lag
+	envelopeNode[param].value = targetValue;
+      } else {
+	envelopeNode[param].linearRampToValueAtTime(targetValue, targetTime);
       }
       if (this.notePhase == 'sustain' &&
 	  ((which + 'SustainPoint') in this.instrument) &&

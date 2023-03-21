@@ -50,7 +50,7 @@ disp = how it appears on the screen
 |  ✔  | ✔  |  ~  |  EAx |  EAx |  EAx | Fine volume slide up
 |  ✔  | ✔  |  ~  |  EBx |  EBx |  EBx | Fine volume slide down
 |  ✔  | ✔  |  ~  |  ECx |  ECx |  ECx | Note cut
-|  ✔  | ✔  |  ✔  |  EDx |  EDx |  EDx | Delay note
+|  ✔  | ✔  |  ~  |  EDx |  EDx |  EDx | Delay note
 |  ✔  | ✔  |  ✖  |  EEx |  EEx |  EEx | Delay pattern
 |  ✖  | ✖  |  ✖  |  EFx |  EFx |  EFx | "Funk it!" (is this a joke?)
 |  ✔  | ✔  |  ~  |  Fxx |  Fxx |  Fxx | Set song speed/BPM
