@@ -8,11 +8,11 @@
   . make playRow more like playPattern and playSong
   . do a simpler loop assuming we won't stop or jump in the middle of a row
  - include info on which ticks things happen on in note-tooltips.js
-- test portamento effects
+# test portamento effects
  - get speed right (think it's slightly too fast?)
 - test EDx note delay effect
  - fix it if that's what's breaking inauglam pattern 15 chords
-- test Fxx tempo change effect
+# test Fxx tempo change effect
  - fix it if that's what's causing note doubling in charons-hornpipe from pattern 3 on
   > only happens in Firefox live playing
 ? test and implement all the remaining effects (prioritized by what I see used most in others' music)
