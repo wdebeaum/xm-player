@@ -310,6 +310,9 @@ class Channel {
 	  this.retriggerEnvelope(when, 'panning');
 	}
       }
+    } else if (effectType == 0x0e && (effectParam >> 4) == 0xd && // delay note
+               (effectParam & 0xf) >= this.xm.currentTempo) {
+      // delay past end of row; don't trigger/release note
     } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
       // delay pattern
       // TODO
