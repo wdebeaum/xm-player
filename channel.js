@@ -290,11 +290,18 @@ class Channel {
     this.applyGlobalEffect(when, effectType, effectParam);
     let sampleOffset = 0;
     if (effectType == 0x09) { sampleOffset = effectParam * 0x100; /* bytes */ }
-    let triggerDelay = 0;
+    let triggerDelay = 0, dontTrigger = false;
     if (effectType == 0x0e && (effectParam >> 4) == 0xd) { // delay note
-      triggerDelay = this.xm.tickDuration() * (effectParam & 0xf);
+      const delayInTicks = (effectParam & 0xf);
+      if (delayInTicks >= this.xm.currentTempo) {
+	dontTrigger = true;
+      } else {
+	triggerDelay = this.xm.tickDuration() * delayInTicks;
+      }
     }
-    if (effectType == 0x03 || effectType == 0x05 ||
+    if (dontTrigger) {
+      // delay past end of row; don't trigger/release note
+    } else if (effectType == 0x03 || effectType == 0x05 ||
 	(volume & 0xf0) == 0xf0) {
       // portamento to note, don't trigger a new note
       if (noteNum > 0 && noteNum <= maxNoteNum && this.notePhase != 'off') {
@@ -310,9 +317,6 @@ class Channel {
 	  this.retriggerEnvelope(when, 'panning');
 	}
       }
-    } else if (effectType == 0x0e && (effectParam >> 4) == 0xd && // delay note
-               (effectParam & 0xf) >= this.xm.currentTempo) {
-      // delay past end of row; don't trigger/release note
     } else if (effectType == 0x0e && (effectParam >> 4) == 0xe) {
       // delay pattern
       // TODO
@@ -322,7 +326,9 @@ class Channel {
       this.triggerNote(when + triggerDelay, noteNum,
 		       instrumentNum, sampleOffset);
     }
-    this.applyVolume(when, volume);
+    if (!dontTrigger) {
+      this.applyVolume(when + triggerDelay, volume);
+    }
     this.applyEffect(when, effectType, effectParam);
     // if we failed to keep dynamic vibrato on, stop doing it
     if (this.dynamicVibrato.on && !this.dynamicVibrato.sustained) {

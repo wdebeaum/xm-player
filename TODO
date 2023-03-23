@@ -10,8 +10,10 @@
  - include info on which ticks things happen on in note-tooltips.js
 # test portamento effects
  - get speed right (think it's slightly too fast?)
-- test EDx note delay effect
- - fix it if that's what's breaking inauglam pattern 15 chords
+# test EDx note delay effect
+ # fix it if that's what's breaking inauglam pattern 15 chords
+ ? fix Mx_EDx combination (i.e. emulate bug in FT2)
+ - test whether/how other volume column stuff is affected by EDx
 # test Fxx tempo change effect
  - fix it if that's what's causing note doubling in charons-hornpipe from pattern 3 on
   > only happens in Firefox live playing
