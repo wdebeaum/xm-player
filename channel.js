@@ -259,23 +259,40 @@ class Channel {
     }
   }
 
+  // FIXME this might just be a special case of setVolume, WBNI I could just use that instead
+  /** Set note volume to 0, but keep the note "playing" in case it is restored
+   * by a later command.
+   * @param {number} [when=actx.currentTime]
+   */
+  silenceNote(when) {
+    if (when === undefined || when < actx.currentTime) {
+      when = actx.currentTime;
+    }
+    // FIXME magic constant... think this might actually be related to tickDuration, similar to instrument fadeout setting
+    // TODO apply this implicit fading to the start of the note too, and maybe any volume change at all
+    const fadeoutDuration = 0.005;
+    // This should work, but doesn't (in either Firefox or Chrome):
+    //this.volumeNode.gain.cancelAndHoldAtTime(when);
+    //this.volumeNode.gain.linearRampToValueAtTime(0, when + fadeoutDuration);
+    // Firefox doesn't implement cancelAndHoldAtTime at all, and Chrome doesn't
+    // do it correctly IMO. And Firefox doesn't correctly implement
+    // linearRampToValueAtTime. So instead approximate the effect with
+    // setTargetAtTime. Time constant*3 gets us 95% of the way to the target.
+    this.volumeNode.gain.cancelScheduledValues(when);
+    this.volumeNode.gain.setTargetAtTime(0, when, fadeoutDuration/3);
+  }
+
   /** Stop playing the note (no release phase).
    * @param {number} [when=actx.currentTime]
    */
   cutNote(when) {
     if (this.notePhase == 'off') { return; }
     this.notePhase = 'off';
-    if (when === undefined || when < actx.currentTime) {
-      when = actx.currentTime;
-    }
-    // avoid clicks at note ends
-    this.volumeNode.gain.cancelScheduledValues(when);
-    // FIXME magic constants not specified anywhere in the XM spec
-    this.volumeNode.gain.setTargetAtTime(0, when, 0.1);
-    this.bs.stop(when+0.2);
+    this.silenceNote(when);
+    this.bs.stop(when + 0.005/*fadeoutDuration FIXME see above*/);
     this.cutEnvelope(when, 'volume');
     this.cutEnvelope(when, 'panning');
-    // TODO disconnect/undefine nodes when when+0.2 passes
+    // TODO disconnect/undefine nodes when bs stops
   }
 
   /** Process a 5-element note/command array from a pattern.
@@ -485,10 +502,9 @@ class Channel {
 	    this.volumeSlide(when, (hi == 0xa), lo / this.xm.currentTempo);
 	    break;
 	  case 0xc: // note cut
-	    // FIXME actually, this just "sets the note volume to 0"; the note
-	    // may be resurrected on a following row (see jumping.xm pattern 3,
-	    // rows 0x0e-0x1b)
-	    this.cutNote(when + this.xm.tickDuration() * lo);
+	    if (lo < this.xm.currentTempo) {
+	      this.silenceNote(when + this.xm.tickDuration() * lo);
+	    }
 	    break;
 	  case 0xd: break; // delay note (see applyCommand)
 	  case 0xe: break; // delay pattern (see applyCommand)
