@@ -18,7 +18,7 @@
  - fix it if that's what's causing note doubling in charons-hornpipe from pattern 3 on
   > only happens in Firefox live playing
 # test ECx note cut effect (and note cut behavior in general, incl. "off" notes and cutting because another note is triggered in the same channel)
- - fix ECx and new note trigger cutting to avoid fadeout, but keep fadeout for "off" notes
+ # fix ECx and new note trigger cutting to avoid fadeout, but keep fadeout for "off" notes
 ? test and implement all the remaining effects (prioritized by what I see used most in others' music)
 ? reorganize so that Channels in a playing state always have the same AudioNode graph, just different parameters (in non-playing state this can be freed)
 ? something wrong with porta in HYPERMMX.XM pattern 41, 4th and 5th channels
