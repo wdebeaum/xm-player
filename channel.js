@@ -290,8 +290,9 @@ class Channel {
     this.notePhase = 'off';
     this.silenceNote(when);
     this.bs.stop(when + 0.005/*fadeoutDuration FIXME see above*/);
-    this.cutEnvelope(when, 'volume');
-    this.cutEnvelope(when, 'panning');
+    // these are redundant with silenceNote above, and cause problems with envelopes when using note delay effect (see related FIXME in cutEnvelope)
+    //this.cutEnvelope(when, 'volume');
+    //this.cutEnvelope(when, 'panning');
     // TODO disconnect/undefine nodes when bs stops
   }
 
@@ -769,6 +770,7 @@ class Channel {
   cutEnvelope(when, which) {
     const envelopeNode = this[which + 'EnvelopeNode'];
     if (envelopeNode !== undefined) {
+      // FIXME!!! if when!=now (e.g. note delay effect), this can still change the envelope values between now and when, because we were leading up to a scheduled value and now we're not; need to figure out what the value would have been at "when" and reinstate setTargetAtTime (or something?) for that value and time. This conflict with note delay applies to other uses of cancelScheduledValues as well.
       envelopeNode[(which == 'volume') ? 'gain' : 'pan']. // FIXME ugh
 	cancelScheduledValues(when);
       if ((which + 'CancelLoop') in this) {
